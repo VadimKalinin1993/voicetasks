@@ -1,16 +1,16 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Задачи">
+<meta name="apple-mobile-web-app-title" content="Tasks">
 <meta name="theme-color" content="#F5F3EE" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0E0E0F" media="(prefers-color-scheme: dark)">
 <meta name="format-detection" content="telephone=no">
-<title>Задачи</title>
+<title>Tasks</title>
 <style>
 :root{
   --bg:#F5F3EE; --surface:#FFFFFF; --text:#1A1916; --muted:#8C887F; --faint:#C4C0B7;
@@ -57,8 +57,8 @@ h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin
 .item.done .radio span::after{transform:scale(1)}
 .item.done .title{color:var(--muted)}
 .item.leaving{opacity:0;max-height:0!important}
-.item.enter{animation:enter .45s ease both}
-@keyframes enter{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.item.enter{animation:enter 1.6s ease both}
+@keyframes enter{0%{opacity:0;transform:translateY(-6px);background:var(--accent-soft)}30%{opacity:1;transform:none;background:var(--accent-soft)}100%{background:transparent}}
 .body{flex:1;min-width:0;padding:15px 0 14px}
 .title{font-size:17px;line-height:1.3;overflow-wrap:anywhere;transition:color .2s}
 .due{font-size:13px;color:var(--muted);margin-top:2px}
@@ -138,11 +138,11 @@ h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin
 <div class="app">
   <header>
     <div>
-      <h1>Задачи</h1>
+      <h1>Tasks</h1>
       <div class="count" id="count"></div>
     </div>
-    <button class="icon-btn" id="gear" aria-label="Настройки">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+    <button class="icon-btn" id="gear" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
     </button>
   </header>
   <main id="list"></main>
@@ -152,34 +152,34 @@ h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin
   <div class="bubble" id="bubble">
     <div class="heard" id="heard"></div>
     <div class="reply" id="reply"></div>
-    <button class="x" id="bubbleClose" aria-label="Закрыть">
+    <button class="x" id="bubbleClose" aria-label="Close">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
     </button>
   </div>
-  <button class="mic" id="mic" aria-label="Говорить">
+  <button class="mic" id="mic" aria-label="Talk">
     <span class="ring"></span><span class="spin"></span>
     <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
   </button>
   <div class="status" id="status"></div>
 </div>
 
-<div class="toast" id="toast"><span id="toastText"></span><button id="toastUndo">Вернуть</button></div>
+<div class="toast" id="toast"><span id="toastText"></span><button id="toastUndo">Undo</button></div>
 
 <div class="sheet-wrap" id="sheet">
   <div class="scrim" id="scrim"></div>
   <div class="sheet">
     <div class="grab"></div>
-    <h3>Настройки</h3>
-    <p class="hint">Ключ Gemini из Google AI Studio. Он хранится только на этом телефоне.</p>
-    <label class="field"><span>Ключ API</span>
+    <h3>Settings</h3>
+    <p class="hint">Your Gemini key from Google AI Studio. It stays on this phone only.</p>
+    <label class="field"><span>API key</span>
       <input id="keyInput" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="AIza…">
     </label>
-    <div class="check"><button class="ghost" id="checkBtn">Проверить ключ</button><p class="hint" id="checkRes"></p></div>
+    <div class="check"><button class="ghost" id="checkBtn">Check key</button><p class="hint" id="checkRes"></p></div>
     <div class="switches">
-      <label class="switch"><span>Озвучивать ответы</span><input type="checkbox" id="ttsToggle"></label>
-      <label class="switch"><span>Сразу слушать ответ на вопрос</span><input type="checkbox" id="alToggle"></label>
+      <label class="switch"><span>Speak questions aloud</span><input type="checkbox" id="ttsToggle"></label>
+      <label class="switch"><span>Listen for the answer right away</span><input type="checkbox" id="alToggle"></label>
     </div>
-    <button class="primary" id="saveBtn">Сохранить</button>
+    <button class="primary" id="saveBtn">Save</button>
     <div class="model" id="modelLine"></div>
   </div>
 </div>
@@ -196,7 +196,7 @@ const saveSettings = () => LS.set('vt.settings', settings);
 let tasks = LS.get('vt.tasks', []);
 const saveTasks = () => LS.set('vt.tasks', tasks);
 
-let pending = null;        // задачи, ждущие срока
+let pending = null;        // tasks waiting for a due date
 let lastQuestion = null;
 let phase = 'idle';
 let speakToken = 0;
@@ -211,16 +211,16 @@ const parseISO = s => { const [y, m, d] = s.split('-').map(Number); return new D
 const todayISO = () => isoOf(new Date());
 const dayDiff = iso => Math.round((parseISO(iso) - parseISO(todayISO())) / 86400000);
 const validISO = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(parseISO(s).getTime());
-const fmtDay = new Intl.DateTimeFormat('ru-RU', { day:'numeric', month:'short' });
-const fmtWd = new Intl.DateTimeFormat('ru-RU', { weekday:'long' });
-const dayStr = d => fmtDay.format(d).replace('.', '');
+const fmtDay = new Intl.DateTimeFormat('en-US', { day:'numeric', month:'short' });
+const fmtWd = new Intl.DateTimeFormat('en-US', { weekday:'long' });
+const dayStr = d => fmtDay.format(d);
 
 function dueText(iso){
   if (!iso) return '';
   const n = dayDiff(iso), d = parseISO(iso);
-  if (n < 0) return n === -1 ? 'просрочено · вчера' : `просрочено · ${dayStr(d)}`;
-  if (n === 0) return 'сегодня';
-  if (n === 1) return 'завтра';
+  if (n < 0) return n === -1 ? 'Overdue · yesterday' : `Overdue · ${dayStr(d)}`;
+  if (n === 0) return 'Today';
+  if (n === 1) return 'Tomorrow';
   if (n < 7) return `${fmtWd.format(d)}, ${dayStr(d)}`;
   return dayStr(d) + (d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : '');
 }
@@ -229,16 +229,16 @@ function bucketOf(iso){
   const n = dayDiff(iso);
   return n < 0 ? 'overdue' : n === 0 ? 'today' : n === 1 ? 'tomorrow' : n < 7 ? 'week' : 'later';
 }
-const GROUPS = [['overdue','Просрочено'],['today','Сегодня'],['tomorrow','Завтра'],['week','Ближайшие дни'],['later','Позже'],['none','Без срока']];
-const plural = (n, f) => { const a = n % 10, b = n % 100; return f[a === 1 && b !== 11 ? 0 : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 1 : 2]; };
+const GROUPS = [['overdue','Overdue'],['today','Today'],['tomorrow','Tomorrow'],['week','Next few days'],['later','Later'],['none','No date']];
+const nTasks = n => n === 1 ? '1 task' : `${n} tasks`;
 
 /* ---------- render ---------- */
 function render(){
   const list = $('#list');
   list.innerHTML = '';
-  $('#count').textContent = tasks.length ? `${tasks.length} ${plural(tasks.length, ['задача','задачи','задач'])}` : '';
+  $('#count').textContent = tasks.length ? nTasks(tasks.length) : '';
   if (!tasks.length){
-    list.innerHTML = `<div class="empty"><b>Пока пусто</b>Нажми на микрофон и скажи, например:<br><i>«Купить продукты завтра»</i></div>`;
+    list.innerHTML = `<div class="empty"><b>Nothing here yet</b>Tap the mic and say something like<br><i>“Buy groceries tomorrow”</i></div>`;
     return;
   }
   const by = {};
@@ -262,7 +262,7 @@ function itemEl(t){
   el.className = 'item' + (freshIds.has(t.id) ? ' enter' : '');
   el.dataset.id = t.id;
   const btn = document.createElement('button');
-  btn.className = 'radio'; btn.setAttribute('aria-label', 'Выполнено');
+  btn.className = 'radio'; btn.setAttribute('aria-label', 'Done');
   btn.innerHTML = '<span></span>';
   btn.addEventListener('click', () => completeTasks([t], true));
   const body = document.createElement('div'); body.className = 'body';
@@ -304,7 +304,7 @@ function completeTasks(list, byTap){
     tasks = tasks.filter(t => !ids.has(t.id));
     saveTasks(); render();
   }, byTap ? 820 : 650);
-  toast(list.length === 1 ? `Готово: ${list[0].title}` : `Готово: ${list.length} ${plural(list.length, ['задача','задачи','задач'])}`);
+  toast(list.length === 1 ? `Done: ${list[0].title}` : `Done: ${nTasks(list.length)}`);
 }
 function undo(){
   for (const t of lastRemoved) if (!tasks.some(x => x.id === t.id)) tasks.push(t);
@@ -326,7 +326,7 @@ $('#toastUndo').addEventListener('click', undo);
 /* ---------- bubble & phase ---------- */
 let bubbleTimer;
 function showBubble(heard, reply){
-  $('#heard').textContent = heard ? `«${heard}»` : '';
+  $('#heard').textContent = heard ? `“${heard}”` : '';
   $('#reply').textContent = reply || '';
   $('#bubble').classList.add('show');
   clearTimeout(bubbleTimer);
@@ -334,7 +334,7 @@ function showBubble(heard, reply){
 }
 function hideBubble(){ $('#bubble').classList.remove('show'); }
 $('#bubbleClose').addEventListener('click', () => {
-  if (pending){ addTasks(pending); toast('Добавлено без срока'); pending = null; lastQuestion = null; }
+  if (pending){ addTasks(pending); toast('Added with no date'); pending = null; lastQuestion = null; }
   hideBubble(); setPhase(phase);
 });
 
@@ -346,10 +346,10 @@ function setPhase(p){
   mic.className = 'mic ' + p;
   $('#micIcon').innerHTML = (p === 'listening' || p === 'speaking') ? ICON_STOP : ICON_MIC;
   $('#status').textContent = {
-    idle: pending ? 'Нажми, чтобы ответить' : 'Нажми и говори',
-    listening: 'Слушаю… нажми, чтобы закончить',
-    thinking: 'Думаю…',
-    speaking: 'Нажми, чтобы прервать'
+    idle: pending ? 'Tap to answer' : 'Tap to talk',
+    listening: 'Listening… tap to finish',
+    thinking: 'Thinking…',
+    speaking: 'Tap to stop'
   }[p];
   if (p !== 'listening') mic.style.setProperty('--lvl', 0);
 }
@@ -399,12 +399,12 @@ const recorder = {
         chunks.push(new Float32Array(d));
         let s = 0; for (let i = 0; i < d.length; i++) s += d[i] * d[i];
         const rms = Math.sqrt(s / d.length), now = performance.now(), el = now - t0;
-        if (el < 300){ floorSum += rms; floorN++; }
+        if (el < 200){ floorSum += rms; floorN++; }
         const floor = floorN ? floorSum / floorN : 0;
         const thr = Math.max(0.012, Math.min(floor, 0.03) * 2.5);
-        if (el >= 300 && rms > thr){ speech = true; lastVoice = now; }
+        if (el >= 200 && rms > thr){ speech = true; lastVoice = now; }
         onLevel && onLevel(Math.min(1, rms / 0.12));
-        if (speech && now - lastVoice > 1500) stop('end');
+        if (speech && now - lastVoice > 900) stop('end');
         else if (!speech && el > 8000) stop('silence');
         else if (el > 60000) stop('end');
       };
@@ -447,23 +447,18 @@ function toBase64(u8){
 let voices = [];
 const loadVoices = () => { try{ voices = speechSynthesis.getVoices() || []; }catch(e){} };
 if (window.speechSynthesis){ loadVoices(); speechSynthesis.addEventListener && speechSynthesis.addEventListener('voiceschanged', loadVoices); }
-function langOf(text){
-  if (/[іїєґІЇЄҐ]/.test(text)) return 'uk-UA';
-  if (/[а-яё]/i.test(text)) return 'ru-RU';
-  return 'en-US';
-}
+const langOf = () => 'en-US';
 function pickVoice(lang){
   const base = lang.slice(0, 2);
   const list = voices.filter(v => (v.lang || '').replace('_', '-').toLowerCase().startsWith(base));
-  return list.find(v => /enhanced|premium|улучш/i.test(v.name)) || list[0] || null;
+  return list.find(v => /enhanced|premium/i.test(v.name)) || list[0] || null;
 }
 function speak(text){
   return new Promise(res => {
     if (!settings.tts || !window.speechSynthesis || !text) return res();
     let lang = langOf(text), voice = pickVoice(lang);
-    if (!voice && lang === 'uk-UA'){ lang = 'ru-RU'; voice = pickVoice(lang); }
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = lang; if (voice) u.voice = voice; u.rate = 1.05;
+    u.lang = lang; if (voice) u.voice = voice; u.rate = 1.1;
     let finished = false;
     const end = () => { if (finished) return; finished = true; res(); };
     u.onend = end; u.onerror = end;
@@ -481,25 +476,24 @@ function unlockAudio(){
 
 /* ---------- Gemini ---------- */
 const API = 'https://generativelanguage.googleapis.com/v1beta';
-const FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-2.5-flash'];
+const FALLBACK_MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-3.5-flash', 'gemini-3-flash-preview'];
 
-const SYSTEM = `Ты — голосовой помощник в личном списке задач. Пользователь говорит по-русски или по-украински. Тебе приходит аудиозапись его фразы и контекст в JSON.
+const SYSTEM = `You manage a personal to-do list by voice. You get an audio clip of the user and a JSON context. Everything you write is in English (translate if the user speaks another language).
 
-Верни JSON:
-- heard: дословно, что сказал пользователь.
-- action: одно из "add", "ask_due", "complete", "none".
-- tasks: список задач {title, due}. title — коротко и по делу, с заглавной буквы, без даты и без слов вроде «мне нужно» (пример: «Позвонить маме»). Язык title — язык пользователя. due — дата "YYYY-MM-DD" или null.
-- complete_ids: id выполненных задач из current_tasks.
-- reply: одна короткая фраза на языке пользователя для озвучивания, без эмодзи и разметки.
+Return JSON:
+- heard: what the user said, in English.
+- action: "add", "ask_due", "complete" or "none".
+- tasks: [{title, due}]. title: short imperative, capitalized, no date, no filler like "I need to" (e.g. "Call mom"). due: "YYYY-MM-DD" or null.
+- complete_ids: ids from current_tasks the user finished or wants removed.
+- reply: one short spoken sentence, no emoji or markdown. Empty string for "add" and "complete".
 
-Правила:
-1. Новая задача со сроком → "add". Если пользователь прямо сказал, что срока нет («без срока», «когда-нибудь») → "add" с due = null.
-2. Если в контексте pending = null и хотя бы у одной новой задачи срок не назван → "ask_due". В tasks — все новые задачи (где срок назван, due заполнен). reply — короткий вопрос про срок, например: «Когда нужно позвонить маме?».
-3. Если pending не null — пользователь отвечает на вопрос о сроке. Верни "add" с задачами из pending и проставленным due. Если ответ «не знаю», «без срока» или непонятен — due = null. Если вместо ответа он надиктовал новые задачи — "add" и для pending (due = null), и для новых. Повторно про срок не спрашивай.
-4. Пользователь говорит, что сделал задачу, или просит её удалить/убрать → "complete", найди подходящие id в current_tasks по смыслу.
-5. Ничего не понятно или речь не о задачах → "none" с короткой репликой.
-6. Сроки считай от today (указан день недели). «сегодня», «завтра», «послезавтра»; «в пятницу» — ближайшая будущая пятница (если сегодня пятница — сегодня); «на этой неделе», «до конца недели» — ближайшее воскресенье; «на следующей неделе» — воскресенье следующей недели; «через N дней» — today + N; «в конце месяца» — последний день месяца; «в течение месяца» — today + 30; «к N-му числу» — ближайшее такое число. Приблизительные сроки округляй до конкретной даты.
-7. reply для "add": подтверди кратко, срок словами, например «Добавил: позвонить маме, на пятницу». Для "complete": «Отметил: …».`;
+Rules:
+1. New task with a due date → "add". If the user says there is no deadline ("no date", "someday") → "add" with due null.
+2. pending is null and some new task has no due date → "ask_due" with all new tasks (fill due where known); reply is a short question like "When do you need to call mom?".
+3. pending is not null → the user is answering the due-date question: "add" the pending tasks with due set. "Don't know", "no date" or unclear → due null. If they dictate new tasks instead, "add" pending (due null) plus the new ones. Never ask twice.
+4. The user says they did a task or wants it removed → "complete" with matching ids.
+5. Unclear or not about tasks → "none" with a short reply.
+6. Dates are relative to today (weekday given): "Friday" = next upcoming Friday (today if it is Friday); "this week"/"end of the week" = coming Sunday; "next week" = Sunday of next week; "in N days" = today + N; "end of the month" = last day of the month; "within a month" = today + 30. Round vague deadlines to a concrete date.`;
 
 const SCHEMA = {
   type: 'OBJECT',
@@ -519,7 +513,7 @@ async function apiError(r){
   const e = new Error(msg || 'HTTP ' + r.status); e.status = r.status; return e;
 }
 const isKeyError = e => e.status === 403 || (e.status === 400 && /api.?key/i.test(e.message));
-function keyErr(){ const e = new Error('bad key'); e.userMessage = 'Ключ не подошёл. Проверь его в настройках.'; e.key = true; return e; }
+function keyErr(){ const e = new Error('bad key'); e.userMessage = 'The API key was rejected. Check it in Settings.'; e.key = true; return e; }
 
 async function discoverModels(key){
   const r = await fetch(`${API}/models?pageSize=1000&key=${encodeURIComponent(key)}`);
@@ -532,7 +526,7 @@ async function discoverModels(key){
   const score = n => {
     const m = n.match(/^gemini-(\d+(?:\.\d+)?)/);
     let s = (m ? parseFloat(m[1]) : 0) * 100;
-    if (/lite/.test(n)) s -= 60;
+    if (/lite/.test(n)) s += 500;
     if (/preview/.test(n)) s -= 25;
     if (/-\d{3}$/.test(n)) s -= 5;
     return s;
@@ -540,10 +534,10 @@ async function discoverModels(key){
   return names.sort((a, b) => score(b) - score(a));
 }
 
-function thinkingFor(m){
-  if (/^gemini-[3-9]/.test(m)) return { thinkingLevel: 'low' };
-  if (/^gemini-2\.5-flash/.test(m)) return { thinkingBudget: 0 };
-  return null;
+function thinkingSteps(m){
+  if (/^gemini-[3-9]/.test(m)) return [{ thinkingLevel: 'minimal' }, { thinkingLevel: 'low' }, null];
+  if (/^gemini-2\.5/.test(m)) return [{ thinkingBudget: 0 }, null];
+  return [null];
 }
 async function callModel(m, key, body, timeoutMs){
   const ctrl = new AbortController();
@@ -567,15 +561,16 @@ async function generate(body, opts = {}){
   const log = [];
   let rateLimited = false, last = null;
   for (const m of cands){
-    let think = thinkingFor(m);
-    for (let attempt = 0; attempt < 2; attempt++){
+    const steps = thinkingSteps(m);
+    for (let si = 0; si < steps.length; si++){
+      const think = steps[si];
       const b = JSON.parse(JSON.stringify(body));
       if (think) b.generationConfig = Object.assign({}, b.generationConfig, { thinkingConfig: think });
       const t0 = performance.now();
       let r;
       try{ r = await callModel(m, key, b, timeoutMs); }
       catch(e){
-        const what = e.name === 'AbortError' ? `не ответила за ${Math.round(timeoutMs / 1000)} с` : `сеть: ${e.message}`;
+        const what = e.name === 'AbortError' ? `no reply in ${Math.round(timeoutMs / 1000)}s` : `network: ${e.message}`;
         log.push(`${m}: ${what}`);
         last = e; break;
       }
@@ -587,17 +582,17 @@ async function generate(body, opts = {}){
       }
       last = await apiError(r);
       if (isKeyError(last)) throw keyErr();
-      if (think && r.status === 400 && /thinking/i.test(last.message)){ think = null; continue; }
+      if (think && r.status === 400 && /thinking/i.test(last.message) && si < steps.length - 1) continue;
       log.push(`${m}: ${last.status} ${last.message.slice(0, 90)}`);
       if (last.status === 404 || /not found|not supported|deprecat/i.test(last.message)){
         if (settings.model === m){ settings.model = ''; saveSettings(); }
       } else if (last.status === 429) rateLimited = true;
-      else if (last.status < 500){ const e = new Error(last.message); e.userMessage = 'Gemini вернул ошибку:\n' + log.join('\n'); throw e; }
+      else if (last.status < 500){ const e = new Error(last.message); e.userMessage = 'Gemini returned an error:\n' + log.join('\n'); throw e; }
       break;
     }
   }
   const e = new Error('failed');
-  e.userMessage = (rateLimited ? 'Лимит бесплатных запросов исчерпан. Попробуй чуть позже.' : 'Не получилось достучаться до Gemini.') + '\n' + log.join('\n');
+  e.userMessage = (rateLimited ? 'Free request limit reached. Try again a bit later.' : 'Couldn’t reach Gemini.') + '\n' + log.join('\n');
   throw e;
 }
 
@@ -614,7 +609,7 @@ async function askGemini(wav){
     systemInstruction: { parts: [{ text: SYSTEM }] },
     contents: [{ role: 'user', parts: [
       { inlineData: { mimeType: 'audio/wav', data: toBase64(wav) } },
-      { text: 'Контекст: ' + JSON.stringify(ctx) }
+      { text: 'Context: ' + JSON.stringify(ctx) }
     ] }],
     generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.2 }
   };
@@ -625,7 +620,7 @@ async function askGemini(wav){
   catch(e){
     const m = text.match(/\{[\s\S]*\}/);
     if (m) return JSON.parse(m[0]);
-    const x = new Error('parse'); x.userMessage = 'Не получилось разобрать ответ. Попробуй ещё раз.'; throw x;
+    const x = new Error('parse'); x.userMessage = 'Couldn’t read the reply. Try again.'; throw x;
   }
 }
 
@@ -638,21 +633,28 @@ async function handle(r){
     .map(t => ({ title: t.title.trim(), due: validISO(t.due) ? t.due : null }));
   const hadPending = !!pending;
 
+  // Adding or completing is silent: the list itself is the confirmation.
   if (action === 'add' && list.length){
     addTasks(list); pending = null; lastQuestion = null;
-  } else if (action === 'ask_due' && list.length){
-    if (hadPending){ addTasks(list); pending = null; lastQuestion = null; }
-    else { pending = list; lastQuestion = reply; }
-  } else if (action === 'complete'){
+    hideBubble(); setPhase('idle'); return;
+  }
+  if (action === 'ask_due' && list.length && hadPending){
+    addTasks(list); pending = null; lastQuestion = null;
+    hideBubble(); setPhase('idle'); return;
+  }
+  if (action === 'complete'){
     const ids = r.complete_ids || [];
     const found = tasks.filter(t => ids.includes(t.id));
-    if (found.length) completeTasks(found, false);
-    else if (!reply) reply = 'Не нашёл такую задачу.';
     pending = null; lastQuestion = null;
+    if (found.length){ completeTasks(found, false); hideBubble(); setPhase('idle'); return; }
+    reply = 'I couldn’t find that task.';
+  } else if (action === 'ask_due' && list.length){
+    pending = list; lastQuestion = reply || 'When is it due?'; reply = lastQuestion;
+  } else if (!reply){
+    reply = 'I didn’t catch that. Try again.';
   }
 
   showBubble(r.heard, reply);
-  if (!reply){ setPhase('idle'); return; }
   const token = ++speakToken;
   setPhase(settings.tts ? 'speaking' : 'idle');
   await speak(reply);
@@ -663,10 +665,10 @@ async function handle(r){
 
 function micErrorText(e){
   if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError'))
-    return 'Нет доступа к микрофону. Разреши его: Настройки → Safari → Микрофон.';
+    return 'No microphone access. Allow it in Settings → Safari → Microphone.';
   if (e && e.name === 'NotSupportedError')
-    return 'Микрофон недоступен. Открой приложение по ссылке https.';
-  return 'Не удалось включить микрофон.';
+    return 'Microphone unavailable. Open the app via its https link.';
+  return 'Couldn’t start the microphone.';
 }
 
 async function startListening(auto){
@@ -679,10 +681,10 @@ async function startListening(auto){
     return;
   }
   if (!audio){ setPhase('idle'); return; }
-  if (audio.dead){ setPhase('idle'); if (!auto) showBubble(null, 'Микрофон не отвечает. Нажми ещё раз.'); return; }
+  if (audio.dead){ setPhase('idle'); if (!auto) showBubble(null, 'The microphone didn’t respond. Tap again.'); return; }
   if (audio.empty){
     setPhase('idle');
-    showBubble(null, pending ? (lastQuestion || 'Когда нужно сделать?') : 'Ничего не расслышал. Попробуй ещё раз.');
+    showBubble(null, pending ? (lastQuestion || 'When is it due?') : 'I didn’t catch that. Try again.');
     return;
   }
   setPhase('thinking');
@@ -691,7 +693,7 @@ async function startListening(auto){
     await handle(r);
   }catch(e){
     setPhase('idle');
-    showBubble(null, e.userMessage || ('Ошибка: ' + e.message));
+    showBubble(null, e.userMessage || ('Error: ' + e.message));
     if (e.key) openSettings();
   }
 }
@@ -720,7 +722,7 @@ function openSettings(){
   $('#ttsToggle').checked = settings.tts;
   $('#alToggle').checked = settings.autoListen;
   $('#checkRes').textContent = '';
-  $('#modelLine').textContent = settings.model ? 'Модель: ' + settings.model : '';
+  $('#modelLine').textContent = settings.model ? 'Model: ' + settings.model : '';
   $('#sheet').classList.add('open');
   if (!settings.key) setTimeout(() => $('#keyInput').focus(), 320);
 }
@@ -737,20 +739,20 @@ $('#saveBtn').addEventListener('click', () => {
 $('#checkBtn').addEventListener('click', async () => {
   const key = $('#keyInput').value.trim();
   const res = $('#checkRes');
-  if (!key){ res.textContent = 'Сначала вставь ключ'; return; }
-  res.textContent = 'Проверяю…';
+  if (!key){ res.textContent = 'Paste a key first'; return; }
+  res.textContent = 'Checking…';
   try{
     const models = await discoverModels(key);
     LS.set('vt.models', models);
     if (key !== settings.key){ settings.model = ''; }
-    res.textContent = 'Ключ работает. Пробую модель…';
-    const j = await generate({ contents: [{ role: 'user', parts: [{ text: 'Ответь одним словом: ок' }] }] }, { key, timeout: 20000 });
-    res.textContent = `Всё работает ✓ (${(j._ms / 1000).toFixed(1)} с)`;
-    $('#modelLine').textContent = 'Модель: ' + j._model;
+    res.textContent = 'Key works. Testing the model…';
+    const j = await generate({ contents: [{ role: 'user', parts: [{ text: 'Reply with one word: ok' }] }] }, { key, timeout: 20000 });
+    res.textContent = `All good ✓ (${(j._ms / 1000).toFixed(1)}s)`;
+    $('#modelLine').textContent = 'Model: ' + j._model;
   }catch(e){
-    if (e.key) res.textContent = 'Ключ не подошёл';
-    else if (e.userMessage) { res.textContent = 'Модель не отвечает'; $('#modelLine').textContent = e.userMessage; }
-    else res.textContent = e.status ? 'Ошибка: ' + e.message : 'Нет связи: ' + e.message;
+    if (e.key) res.textContent = 'Key rejected';
+    else if (e.userMessage) { res.textContent = 'Model not responding'; $('#modelLine').textContent = e.userMessage; }
+    else res.textContent = e.status ? 'Error: ' + e.message : 'No connection: ' + e.message;
   }
 });
 
