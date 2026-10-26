@@ -1,28 +1,29 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Tasks">
+<meta name="apple-mobile-web-app-title" content="Задачи">
 <meta name="theme-color" content="#F5F3EE" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0E0E0F" media="(prefers-color-scheme: dark)">
 <meta name="format-detection" content="telephone=no">
-<title>Tasks</title>
+<title>Задачи</title>
 <style>
 :root{
-  --bg:#F5F3EE; --surface:#FFFFFF; --text:#1A1916; --muted:#8C887F; --faint:#C4C0B7;
-  --line:rgba(26,25,22,.08); --accent:#FF5B37; --accent-soft:rgba(255,91,55,.16);
-  --danger:#D6402E; --shadow:0 12px 32px rgba(26,25,22,.12);
+  --bg:#F5F4F1; --surface:#FFFFFF; --text:#17181B; --muted:#8A8B90; --faint:#C6C7CC;
+  --line:rgba(23,24,27,.08); --accent:#2F6BFF; --accent-soft:rgba(47,107,255,.13);
+  --grad:linear-gradient(135deg,#2F6BFF 0%,#1FA2FF 52%,#6A5CFF 100%);
+  --danger:#D6402E; --shadow:0 12px 32px rgba(23,24,27,.12);
   --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
   color-scheme:light dark;
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#0E0E0F; --surface:#1B1B1D; --text:#F3F1EC; --muted:#8F8B84; --faint:#4E4B47;
-    --line:rgba(255,255,255,.07); --accent:#FF6A48; --accent-soft:rgba(255,106,72,.2);
+    --bg:#0D0E10; --surface:#1A1B1E; --text:#F2F3F5; --muted:#8C8E95; --faint:#4A4C52;
+    --line:rgba(255,255,255,.07); --accent:#4D82FF; --accent-soft:rgba(77,130,255,.2);
     --danger:#FF6B5B; --shadow:0 12px 32px rgba(0,0,0,.55);
   }
 }
@@ -36,10 +37,9 @@ body{
 input{-webkit-user-select:text;user-select:text}
 button{font:inherit;color:inherit;cursor:pointer}
 
-.app{padding:calc(var(--safe-t) + 18px) 18px calc(var(--safe-b) + 240px);max-width:620px;margin:0 auto}
-header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:6px 2px 8px}
+.app{padding:calc(var(--safe-t) + 18px) 18px calc(var(--safe-b) + 200px);max-width:620px;margin:0 auto}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 2px 4px}
 h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin:0}
-.count{color:var(--muted);font-size:15px;margin-top:5px}
 .icon-btn{width:40px;height:40px;flex:none;border-radius:50%;border:0;background:var(--surface);color:var(--muted);display:grid;place-items:center}
 .icon-btn svg{width:20px;height:20px}
 
@@ -50,64 +50,77 @@ h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin
 .item{display:flex;align-items:center;position:relative;padding:0 16px 0 4px;overflow:hidden;
   transition:opacity .25s ease,max-height .32s ease .08s}
 .item + .item::before{content:"";position:absolute;top:0;left:52px;right:0;height:1px;background:var(--line)}
-.radio{flex:none;width:48px;height:56px;border:0;background:none;padding:0;display:grid;place-items:center}
+.radio{flex:none;width:48px;height:54px;border:0;background:none;padding:0;display:grid;place-items:center}
 .radio span{width:24px;height:24px;border-radius:50%;border:2px solid var(--faint);display:grid;place-items:center;transition:border-color .2s}
-.radio span::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--accent);transform:scale(0);transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
+.radio span::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--grad);transform:scale(0);transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
 .item.done .radio span{border-color:var(--accent)}
 .item.done .radio span::after{transform:scale(1)}
 .item.done .title{color:var(--muted)}
 .item.leaving{opacity:0;max-height:0!important}
 .item.enter{animation:enter 1.6s ease both}
 @keyframes enter{0%{opacity:0;transform:translateY(-6px);background:var(--accent-soft)}30%{opacity:1;transform:none;background:var(--accent-soft)}100%{background:transparent}}
-.body{flex:1;min-width:0;padding:15px 0 14px}
+.body{flex:1;min-width:0;padding:15px 0}
 .title{font-size:17px;line-height:1.3;overflow-wrap:anywhere;transition:color .2s}
-.due{font-size:13px;color:var(--muted);margin-top:2px}
-.due.over{color:var(--danger)}
 
 .empty{margin-top:22vh;text-align:center;color:var(--muted);padding:0 24px}
-.empty b{display:block;color:var(--text);font-size:19px;font-weight:600;margin-bottom:8px}
 .empty i{font-style:normal;color:var(--text)}
 
 .dock{position:fixed;left:0;right:0;bottom:0;z-index:5;pointer-events:none;
-  padding:56px 18px calc(var(--safe-b) + 16px);
+  padding:56px 18px calc(var(--safe-b) + 18px);
   background:linear-gradient(to bottom,rgba(0,0,0,0),var(--bg) 42%);
   display:flex;flex-direction:column;align-items:center}
-.dock > *{pointer-events:auto}
+.dock > *{pointer-events:auto;position:relative;z-index:1}
+
+/* recording glow */
+.dock > .glow{position:fixed;z-index:0;left:-15%;right:-15%;bottom:-80px;height:250px;pointer-events:none;
+  opacity:0;transition:opacity .45s ease}
+.glow .lift{position:absolute;inset:0;transform-origin:50% 100%;
+  transform:scaleY(calc(.7 + var(--lvl,0)*.65));transition:transform .12s linear}
+.glow i{position:absolute;bottom:0;width:58%;height:100%;border-radius:50%;filter:blur(36px)}
+.glow i:nth-child(1){left:0;background:radial-gradient(closest-side,rgba(47,107,255,.95),rgba(47,107,255,0));animation:d1 5.5s ease-in-out infinite alternate}
+.glow i:nth-child(2){left:21%;background:radial-gradient(closest-side,rgba(0,200,255,.9),rgba(0,200,255,0));animation:d2 4.5s ease-in-out infinite alternate}
+.glow i:nth-child(3){right:0;background:radial-gradient(closest-side,rgba(106,92,255,.9),rgba(106,92,255,0));animation:d3 6.5s ease-in-out infinite alternate}
+@keyframes d1{to{transform:translate(18%,6%) scale(1.1)}}
+@keyframes d2{from{transform:translateX(-12%) scale(.95)}to{transform:translateX(14%) scale(1.15)}}
+@keyframes d3{to{transform:translate(-20%,4%) scale(1.08)}}
+.glow.on{opacity:1}
+.glow.soft{opacity:.5;animation:soft 1.8s ease-in-out infinite}
+@keyframes soft{0%,100%{opacity:.3}50%{opacity:.6}}
+
 .bubble{width:100%;max-width:520px;background:var(--surface);border-radius:20px;padding:14px 44px 14px 16px;
-  box-shadow:var(--shadow);margin-bottom:18px;position:relative;
+  box-shadow:var(--shadow);margin-bottom:18px;
   opacity:0;transform:translateY(10px);transition:opacity .25s,transform .25s;pointer-events:none}
-.bubble.show{opacity:1;transform:none;pointer-events:auto}
+.dock > .bubble{pointer-events:none}
+.dock > .bubble.show{opacity:1;transform:none;pointer-events:auto}
 .bubble .heard{color:var(--muted);font-size:14px;margin-bottom:4px}
 .bubble .heard:empty{display:none}
 .bubble .reply{font-size:16px;line-height:1.35;white-space:pre-line;overflow-wrap:anywhere}
 .bubble .x{position:absolute;top:8px;right:8px;width:30px;height:30px;border:0;border-radius:50%;background:none;color:var(--muted);display:grid;place-items:center}
 .bubble .x svg{width:16px;height:16px}
 
-.mic{width:78px;height:78px;border-radius:50%;border:0;background:var(--text);color:var(--bg);
-  display:grid;place-items:center;position:relative;transition:transform .15s,background .2s,color .2s}
+.mic{width:76px;height:76px;border-radius:50%;border:0;background:var(--text);color:var(--bg);
+  display:grid;place-items:center;transition:transform .12s linear,background .25s,color .25s,box-shadow .3s}
 .mic:active{transform:scale(.94)}
 .mic svg{width:30px;height:30px;position:relative;z-index:1}
-.mic .ring{position:absolute;inset:-10px;border-radius:50%;background:var(--accent-soft);opacity:0;
-  transform:scale(calc(.85 + var(--lvl,0)*.45));transition:transform .09s linear,opacity .2s}
 .mic .spin{position:absolute;inset:-6px;border-radius:50%;border:2.5px solid transparent;border-top-color:var(--accent);opacity:0}
-.mic.listening{background:var(--accent);color:#fff}
-.mic.listening .ring{opacity:1}
+.mic.listening,.mic.speaking{background:var(--grad);color:#fff;box-shadow:0 8px 28px rgba(47,107,255,.45)}
+.mic.listening{transform:scale(calc(1 + var(--lvl,0)*.09))}
 .mic.thinking .spin{opacity:1;animation:spin .8s linear infinite}
-.mic.speaking .ring{opacity:1;animation:breathe 1.4s ease-in-out infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-@keyframes breathe{0%,100%{transform:scale(.9)}50%{transform:scale(1.12)}}
-.status{margin-top:12px;font-size:13px;color:var(--muted);min-height:17px;text-align:center}
 
-.toast{position:fixed;left:50%;top:calc(var(--safe-t) + 10px);z-index:20;transform:translate(-50%,-140%);
+.toast{position:fixed;left:50%;top:calc(var(--safe-t) + 10px);z-index:20;transform:translate(-50%,-30px);
   background:var(--text);color:var(--bg);border-radius:14px;padding:10px 10px 10px 16px;
   display:flex;align-items:center;gap:12px;font-size:15px;max-width:calc(100% - 32px);
-  transition:transform .3s cubic-bezier(.2,.9,.3,1.1);box-shadow:var(--shadow)}
-.toast.show{transform:translate(-50%,0)}
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:transform .3s cubic-bezier(.2,.9,.3,1.1),opacity .2s,visibility 0s .3s}
+.toast.show{transform:translate(-50%,0);opacity:1;visibility:visible;pointer-events:auto;
+  box-shadow:var(--shadow);transition:transform .3s cubic-bezier(.2,.9,.3,1.1),opacity .2s}
 .toast span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.toast button{border:0;background:none;color:var(--accent);font-weight:600;padding:4px 8px;flex:none}
+.toast button{border:0;background:none;color:#7FA6FF;font-weight:600;padding:4px 8px;flex:none}
+@media (prefers-color-scheme: dark){ .toast button{color:var(--accent)} }
 
-.sheet-wrap{position:fixed;inset:0;z-index:30;visibility:hidden}
-.sheet-wrap.open{visibility:visible}
+.sheet-wrap{position:fixed;inset:0;z-index:30;visibility:hidden;transition:visibility 0s .3s}
+.sheet-wrap.open{visibility:visible;transition:none}
 .scrim{position:absolute;inset:0;background:rgba(0,0,0,.35);opacity:0;transition:opacity .25s}
 .sheet-wrap.open .scrim{opacity:1}
 .sheet{position:absolute;left:0;right:0;bottom:0;max-width:620px;margin:0 auto;background:var(--bg);
@@ -123,8 +136,8 @@ h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin
 .check{display:flex;align-items:center;gap:12px;margin:10px 0 18px}
 .check .hint{margin:0}
 .ghost{border:0;background:var(--surface);border-radius:12px;padding:9px 14px;font-size:15px;flex:none}
-.switch{display:flex;align-items:center;justify-content:space-between;background:var(--surface);padding:12px 14px;font-size:16px}
 .switches{border-radius:14px;overflow:hidden}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface);padding:12px 14px;font-size:16px}
 .switch + .switch{border-top:1px solid var(--line)}
 .switch input{appearance:none;-webkit-appearance:none;width:50px;height:30px;border-radius:15px;background:var(--faint);position:relative;transition:background .2s;margin:0;flex:none}
 .switch input::after{content:"";position:absolute;top:2px;left:2px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .2s}
@@ -137,11 +150,8 @@ h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin
 <body>
 <div class="app">
   <header>
-    <div>
-      <h1>Tasks</h1>
-      <div class="count" id="count"></div>
-    </div>
-    <button class="icon-btn" id="gear" aria-label="Settings">
+    <h1 id="count">Задачи</h1>
+    <button class="icon-btn" id="gear" aria-label="Настройки">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
     </button>
   </header>
@@ -149,37 +159,37 @@ h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin
 </div>
 
 <div class="dock">
+  <div class="glow" id="glow"><div class="lift"><i></i><i></i><i></i></div></div>
   <div class="bubble" id="bubble">
     <div class="heard" id="heard"></div>
     <div class="reply" id="reply"></div>
-    <button class="x" id="bubbleClose" aria-label="Close">
+    <button class="x" id="bubbleClose" aria-label="Закрыть">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
     </button>
   </div>
-  <button class="mic" id="mic" aria-label="Talk">
-    <span class="ring"></span><span class="spin"></span>
+  <button class="mic" id="mic" aria-label="Говорить">
+    <span class="spin"></span>
     <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
   </button>
-  <div class="status" id="status"></div>
 </div>
 
-<div class="toast" id="toast"><span id="toastText"></span><button id="toastUndo">Undo</button></div>
+<div class="toast" id="toast"><span id="toastText"></span><button id="toastUndo">Вернуть</button></div>
 
 <div class="sheet-wrap" id="sheet">
   <div class="scrim" id="scrim"></div>
   <div class="sheet">
     <div class="grab"></div>
-    <h3>Settings</h3>
-    <p class="hint">Your Gemini key from Google AI Studio. It stays on this phone only.</p>
-    <label class="field"><span>API key</span>
+    <h3>Настройки</h3>
+    <p class="hint">Ключ Gemini из Google AI Studio. Он хранится только на этом телефоне.</p>
+    <label class="field"><span>Ключ API</span>
       <input id="keyInput" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="AIza…">
     </label>
-    <div class="check"><button class="ghost" id="checkBtn">Check key</button><p class="hint" id="checkRes"></p></div>
+    <div class="check"><button class="ghost" id="checkBtn">Проверить ключ</button><p class="hint" id="checkRes"></p></div>
     <div class="switches">
-      <label class="switch"><span>Speak questions aloud</span><input type="checkbox" id="ttsToggle"></label>
-      <label class="switch"><span>Listen for the answer right away</span><input type="checkbox" id="alToggle"></label>
+      <label class="switch"><span>Озвучивать вопросы</span><input type="checkbox" id="ttsToggle"></label>
+      <label class="switch"><span>Сразу слушать ответ</span><input type="checkbox" id="alToggle"></label>
     </div>
-    <button class="primary" id="saveBtn">Save</button>
+    <button class="primary" id="saveBtn">Сохранить</button>
     <div class="model" id="modelLine"></div>
   </div>
 </div>
@@ -211,49 +221,49 @@ const parseISO = s => { const [y, m, d] = s.split('-').map(Number); return new D
 const todayISO = () => isoOf(new Date());
 const dayDiff = iso => Math.round((parseISO(iso) - parseISO(todayISO())) / 86400000);
 const validISO = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(parseISO(s).getTime());
-const fmtDay = new Intl.DateTimeFormat('en-US', { day:'numeric', month:'short' });
-const fmtWd = new Intl.DateTimeFormat('en-US', { weekday:'long' });
-const dayStr = d => fmtDay.format(d);
+const fmtLong = new Intl.DateTimeFormat('ru-RU', { day:'numeric', month:'long' });
+const fmtLongY = new Intl.DateTimeFormat('ru-RU', { day:'numeric', month:'long', year:'numeric' });
+const fmtWd = new Intl.DateTimeFormat('ru-RU', { weekday:'long' });
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const longDate = d => (d.getFullYear() !== new Date().getFullYear() ? fmtLongY : fmtLong).format(d).replace(/\s*г\.$/, '');
 
-function dueText(iso){
-  if (!iso) return '';
+// Заголовок группы целиком описывает срок, поэтому у самих задач даты нет.
+function groupOf(iso){
+  if (!iso) return { key: '~none', label: 'Без срока', cls: 'none' };
   const n = dayDiff(iso), d = parseISO(iso);
-  if (n < 0) return n === -1 ? 'Overdue · yesterday' : `Overdue · ${dayStr(d)}`;
-  if (n === 0) return 'Today';
-  if (n === 1) return 'Tomorrow';
-  if (n < 7) return `${fmtWd.format(d)}, ${dayStr(d)}`;
-  return dayStr(d) + (d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : '');
+  if (n < 0) return { key: iso, label: n === -1 ? 'Просрочено · вчера' : `Просрочено · ${longDate(d)}`, cls: 'overdue' };
+  if (n === 0) return { key: iso, label: 'Сегодня', cls: 'today' };
+  if (n === 1) return { key: iso, label: 'Завтра', cls: 'tomorrow' };
+  return { key: iso, label: `${cap(fmtWd.format(d))}, ${longDate(d)}`, cls: 'later' };
 }
-function bucketOf(iso){
-  if (!iso) return 'none';
-  const n = dayDiff(iso);
-  return n < 0 ? 'overdue' : n === 0 ? 'today' : n === 1 ? 'tomorrow' : n < 7 ? 'week' : 'later';
-}
-const GROUPS = [['overdue','Overdue'],['today','Today'],['tomorrow','Tomorrow'],['week','Next few days'],['later','Later'],['none','No date']];
-const nTasks = n => n === 1 ? '1 task' : `${n} tasks`;
+const plural = (n, f) => { const a = n % 10, b = n % 100; return f[a === 1 && b !== 11 ? 0 : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 1 : 2]; };
+const nTasks = n => `${n} ${plural(n, ['задача','задачи','задач'])}`;
 
 /* ---------- render ---------- */
 function render(){
   const list = $('#list');
   list.innerHTML = '';
-  $('#count').textContent = tasks.length ? nTasks(tasks.length) : '';
+  $('#count').textContent = tasks.length ? nTasks(tasks.length) : 'Задач нет';
   if (!tasks.length){
-    list.innerHTML = `<div class="empty"><b>Nothing here yet</b>Tap the mic and say something like<br><i>“Buy groceries tomorrow”</i></div>`;
+    list.innerHTML = `<div class="empty">Нажми на микрофон и скажи, например:<br><i>«Купить продукты завтра»</i></div>`;
     return;
   }
-  const by = {};
-  for (const t of tasks) (by[bucketOf(t.due)] ||= []).push(t);
-  for (const [k, label] of GROUPS){
-    const arr = by[k];
-    if (!arr) continue;
-    arr.sort((a, b) => (a.due || '').localeCompare(b.due || '') || a.created - b.created);
-    const g = document.createElement('section');
-    g.className = 'group ' + k;
-    const h = document.createElement('h2'); h.textContent = label; g.appendChild(h);
+  const groups = new Map();
+  for (const t of tasks){
+    const g = groupOf(t.due);
+    if (!groups.has(g.key)) groups.set(g.key, Object.assign(g, { items: [] }));
+    groups.get(g.key).items.push(t);
+  }
+  for (const k of [...groups.keys()].sort()){
+    const g = groups.get(k);
+    g.items.sort((a, b) => a.created - b.created);
+    const sec = document.createElement('section');
+    sec.className = 'group ' + g.cls;
+    const h = document.createElement('h2'); h.textContent = g.label; sec.appendChild(h);
     const card = document.createElement('div'); card.className = 'card';
-    for (const t of arr) card.appendChild(itemEl(t));
-    g.appendChild(card);
-    list.appendChild(g);
+    for (const t of g.items) card.appendChild(itemEl(t));
+    sec.appendChild(card);
+    list.appendChild(sec);
   }
   freshIds.clear();
 }
@@ -262,18 +272,12 @@ function itemEl(t){
   el.className = 'item' + (freshIds.has(t.id) ? ' enter' : '');
   el.dataset.id = t.id;
   const btn = document.createElement('button');
-  btn.className = 'radio'; btn.setAttribute('aria-label', 'Done');
+  btn.className = 'radio'; btn.setAttribute('aria-label', 'Выполнено');
   btn.innerHTML = '<span></span>';
   btn.addEventListener('click', () => completeTasks([t], true));
   const body = document.createElement('div'); body.className = 'body';
   const title = document.createElement('div'); title.className = 'title'; title.textContent = t.title;
   body.appendChild(title);
-  if (t.due){
-    const due = document.createElement('div');
-    due.className = 'due' + (dayDiff(t.due) < 0 ? ' over' : '');
-    due.textContent = dueText(t.due);
-    body.appendChild(due);
-  }
   el.append(btn, body);
   return el;
 }
@@ -304,7 +308,7 @@ function completeTasks(list, byTap){
     tasks = tasks.filter(t => !ids.has(t.id));
     saveTasks(); render();
   }, byTap ? 820 : 650);
-  toast(list.length === 1 ? `Done: ${list[0].title}` : `Done: ${nTasks(list.length)}`);
+  toast(list.length === 1 ? `Готово: ${list[0].title}` : `Готово: ${nTasks(list.length)}`);
 }
 function undo(){
   for (const t of lastRemoved) if (!tasks.some(x => x.id === t.id)) tasks.push(t);
@@ -326,7 +330,7 @@ $('#toastUndo').addEventListener('click', undo);
 /* ---------- bubble & phase ---------- */
 let bubbleTimer;
 function showBubble(heard, reply){
-  $('#heard').textContent = heard ? `“${heard}”` : '';
+  $('#heard').textContent = heard ? `«${heard}»` : '';
   $('#reply').textContent = reply || '';
   $('#bubble').classList.add('show');
   clearTimeout(bubbleTimer);
@@ -334,26 +338,27 @@ function showBubble(heard, reply){
 }
 function hideBubble(){ $('#bubble').classList.remove('show'); }
 $('#bubbleClose').addEventListener('click', () => {
-  if (pending){ addTasks(pending); toast('Added with no date'); pending = null; lastQuestion = null; }
+  if (pending){ addTasks(pending); toast('Добавлено без срока'); pending = null; lastQuestion = null; }
   hideBubble(); setPhase(phase);
 });
 
 const ICON_MIC = '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/>';
 const ICON_STOP = '<rect x="6.5" y="6.5" width="11" height="11" rx="2.5" fill="currentColor" stroke="none"/>';
+let lvl = 0;
 function setPhase(p){
   phase = p;
   const mic = $('#mic');
   mic.className = 'mic ' + p;
   $('#micIcon').innerHTML = (p === 'listening' || p === 'speaking') ? ICON_STOP : ICON_MIC;
-  $('#status').textContent = {
-    idle: pending ? 'Tap to answer' : 'Tap to talk',
-    listening: 'Listening… tap to finish',
-    thinking: 'Thinking…',
-    speaking: 'Tap to stop'
-  }[p];
-  if (p !== 'listening') mic.style.setProperty('--lvl', 0);
+  $('#glow').className = 'glow' + (p === 'listening' ? ' on' : (p === 'thinking' || p === 'speaking') ? ' soft' : '');
+  if (p !== 'listening') setLevel(0, true);
 }
-const setLevel = v => $('#mic').style.setProperty('--lvl', v.toFixed(2));
+function setLevel(v, reset){
+  lvl = reset ? 0 : lvl * 0.55 + v * 0.45;
+  const val = lvl.toFixed(3);
+  $('#mic').style.setProperty('--lvl', val);
+  $('#glow').style.setProperty('--lvl', val);
+}
 
 /* ---------- recorder (PCM → WAV) ---------- */
 const recorder = {
@@ -447,11 +452,11 @@ function toBase64(u8){
 let voices = [];
 const loadVoices = () => { try{ voices = speechSynthesis.getVoices() || []; }catch(e){} };
 if (window.speechSynthesis){ loadVoices(); speechSynthesis.addEventListener && speechSynthesis.addEventListener('voiceschanged', loadVoices); }
-const langOf = () => 'en-US';
+const langOf = () => 'ru-RU';
 function pickVoice(lang){
   const base = lang.slice(0, 2);
   const list = voices.filter(v => (v.lang || '').replace('_', '-').toLowerCase().startsWith(base));
-  return list.find(v => /enhanced|premium/i.test(v.name)) || list[0] || null;
+  return list.find(v => /enhanced|premium|улучш/i.test(v.name)) || list[0] || null;
 }
 function speak(text){
   return new Promise(res => {
@@ -478,22 +483,27 @@ function unlockAudio(){
 const API = 'https://generativelanguage.googleapis.com/v1beta';
 const FALLBACK_MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-3.5-flash', 'gemini-3-flash-preview'];
 
-const SYSTEM = `You manage a personal to-do list by voice. You get an audio clip of the user and a JSON context. Everything you write is in English (translate if the user speaks another language).
+const SYSTEM = `Ты ведёшь личный список задач голосом. Тебе приходит аудиозапись пользователя и контекст в JSON. Пользователь говорит в основном по-русски, иногда вставляя английские слова.
 
-Return JSON:
-- heard: what the user said, in English.
-- action: "add", "ask_due", "complete" or "none".
-- tasks: [{title, due}]. title: short imperative, capitalized, no date, no filler like "I need to" (e.g. "Call mom"). due: "YYYY-MM-DD" or null.
-- complete_ids: ids from current_tasks the user finished or wants removed.
-- reply: one short spoken sentence, no emoji or markdown. Empty string for "add" and "complete".
+Язык записи:
+- Пиши по-русски, кириллицей.
+- Английские слова, которые пользователь произнёс по-английски, и всё, что обычно пишут латиницей (названия сервисов, приложений, брендов, компаний, технические термины, аббревиатуры: Figma, GitHub, Jira, Notion, Netflix, PR, API, deploy, onboarding), пиши латиницей в оригинальном написании. Не транслитерируй их («фигма» → Figma, «гитхаб» → GitHub).
+- Если пользователь сказал всю фразу по-английски, пиши её по-английски.
 
-Rules:
-1. New task with a due date → "add". If the user says there is no deadline ("no date", "someday") → "add" with due null.
-2. pending is null and some new task has no due date → "ask_due" with all new tasks (fill due where known); reply is a short question like "When do you need to call mom?".
-3. pending is not null → the user is answering the due-date question: "add" the pending tasks with due set. "Don't know", "no date" or unclear → due null. If they dictate new tasks instead, "add" pending (due null) plus the new ones. Never ask twice.
-4. The user says they did a task or wants it removed → "complete" with matching ids.
-5. Unclear or not about tasks → "none" with a short reply.
-6. Dates are relative to today (weekday given): "Friday" = next upcoming Friday (today if it is Friday); "this week"/"end of the week" = coming Sunday; "next week" = Sunday of next week; "in N days" = today + N; "end of the month" = last day of the month; "within a month" = today + 30. Round vague deadlines to a concrete date.`;
+Верни JSON:
+- heard: что сказал пользователь, по тем же правилам языка.
+- action: "add", "ask_due", "complete" или "none".
+- tasks: [{title, due}]. title — коротко, с заглавной буквы, в форме действия, без даты и без «мне нужно» (пример: «Позвонить маме», «Обновить макеты в Figma»). due — "YYYY-MM-DD" или null.
+- complete_ids: id из current_tasks, которые пользователь сделал или просит убрать.
+- reply: одна короткая фраза по-русски для озвучки, без эмодзи и разметки. Для "add" и "complete" — пустая строка.
+
+Правила:
+1. Новая задача со сроком → "add". Если пользователь прямо сказал, что срока нет («без срока», «когда-нибудь») → "add" с due = null.
+2. pending = null и у какой-то новой задачи срок не назван → "ask_due" со всеми новыми задачами (где срок известен, due заполнен); reply — короткий вопрос, например «Когда нужно позвонить маме?».
+3. pending не null → это ответ про срок: "add" для задач из pending с проставленным due. «Не знаю», «без срока» или непонятно → due = null. Если вместо ответа надиктованы новые задачи — "add" и pending (due = null), и новых. Дважды не спрашивай.
+4. Пользователь говорит, что сделал задачу, или просит её убрать → "complete" с подходящими id.
+5. Непонятно или не про задачи → "none" с короткой репликой.
+6. Даты считай от today (день недели указан): «в пятницу» — ближайшая будущая пятница (если сегодня пятница — сегодня); «на этой неделе», «до конца недели» — ближайшее воскресенье; «на следующей неделе» — воскресенье следующей недели; «через N дней» — today + N; «в конце месяца» — последний день месяца; «в течение месяца» — today + 30. Приблизительные сроки округляй до конкретной даты.`;
 
 const SCHEMA = {
   type: 'OBJECT',
@@ -513,7 +523,7 @@ async function apiError(r){
   const e = new Error(msg || 'HTTP ' + r.status); e.status = r.status; return e;
 }
 const isKeyError = e => e.status === 403 || (e.status === 400 && /api.?key/i.test(e.message));
-function keyErr(){ const e = new Error('bad key'); e.userMessage = 'The API key was rejected. Check it in Settings.'; e.key = true; return e; }
+function keyErr(){ const e = new Error('bad key'); e.userMessage = 'Ключ не подошёл. Проверь его в настройках.'; e.key = true; return e; }
 
 async function discoverModels(key){
   const r = await fetch(`${API}/models?pageSize=1000&key=${encodeURIComponent(key)}`);
@@ -570,7 +580,7 @@ async function generate(body, opts = {}){
       let r;
       try{ r = await callModel(m, key, b, timeoutMs); }
       catch(e){
-        const what = e.name === 'AbortError' ? `no reply in ${Math.round(timeoutMs / 1000)}s` : `network: ${e.message}`;
+        const what = e.name === 'AbortError' ? `нет ответа за ${Math.round(timeoutMs / 1000)} с` : `сеть: ${e.message}`;
         log.push(`${m}: ${what}`);
         last = e; break;
       }
@@ -587,12 +597,12 @@ async function generate(body, opts = {}){
       if (last.status === 404 || /not found|not supported|deprecat/i.test(last.message)){
         if (settings.model === m){ settings.model = ''; saveSettings(); }
       } else if (last.status === 429) rateLimited = true;
-      else if (last.status < 500){ const e = new Error(last.message); e.userMessage = 'Gemini returned an error:\n' + log.join('\n'); throw e; }
+      else if (last.status < 500){ const e = new Error(last.message); e.userMessage = 'Gemini вернул ошибку:\n' + log.join('\n'); throw e; }
       break;
     }
   }
   const e = new Error('failed');
-  e.userMessage = (rateLimited ? 'Free request limit reached. Try again a bit later.' : 'Couldn’t reach Gemini.') + '\n' + log.join('\n');
+  e.userMessage = (rateLimited ? 'Лимит бесплатных запросов исчерпан. Попробуй чуть позже.' : 'Не получилось достучаться до Gemini.') + '\n' + log.join('\n');
   throw e;
 }
 
@@ -609,7 +619,7 @@ async function askGemini(wav){
     systemInstruction: { parts: [{ text: SYSTEM }] },
     contents: [{ role: 'user', parts: [
       { inlineData: { mimeType: 'audio/wav', data: toBase64(wav) } },
-      { text: 'Context: ' + JSON.stringify(ctx) }
+      { text: 'Контекст: ' + JSON.stringify(ctx) }
     ] }],
     generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.2 }
   };
@@ -620,7 +630,7 @@ async function askGemini(wav){
   catch(e){
     const m = text.match(/\{[\s\S]*\}/);
     if (m) return JSON.parse(m[0]);
-    const x = new Error('parse'); x.userMessage = 'Couldn’t read the reply. Try again.'; throw x;
+    const x = new Error('parse'); x.userMessage = 'Не получилось разобрать ответ. Попробуй ещё раз.'; throw x;
   }
 }
 
@@ -633,7 +643,7 @@ async function handle(r){
     .map(t => ({ title: t.title.trim(), due: validISO(t.due) ? t.due : null }));
   const hadPending = !!pending;
 
-  // Adding or completing is silent: the list itself is the confirmation.
+  // Добавление и отметка проходят молча: подтверждение видно в самом списке.
   if (action === 'add' && list.length){
     addTasks(list); pending = null; lastQuestion = null;
     hideBubble(); setPhase('idle'); return;
@@ -647,11 +657,11 @@ async function handle(r){
     const found = tasks.filter(t => ids.includes(t.id));
     pending = null; lastQuestion = null;
     if (found.length){ completeTasks(found, false); hideBubble(); setPhase('idle'); return; }
-    reply = 'I couldn’t find that task.';
+    reply = 'Не нашёл такую задачу.';
   } else if (action === 'ask_due' && list.length){
-    pending = list; lastQuestion = reply || 'When is it due?'; reply = lastQuestion;
+    pending = list; lastQuestion = reply || 'Когда нужно сделать?'; reply = lastQuestion;
   } else if (!reply){
-    reply = 'I didn’t catch that. Try again.';
+    reply = 'Не расслышал. Попробуй ещё раз.';
   }
 
   showBubble(r.heard, reply);
@@ -665,10 +675,10 @@ async function handle(r){
 
 function micErrorText(e){
   if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError'))
-    return 'No microphone access. Allow it in Settings → Safari → Microphone.';
+    return 'Нет доступа к микрофону. Разреши его: Настройки → Safari → Микрофон.';
   if (e && e.name === 'NotSupportedError')
-    return 'Microphone unavailable. Open the app via its https link.';
-  return 'Couldn’t start the microphone.';
+    return 'Микрофон недоступен. Открой приложение по ссылке https.';
+  return 'Не удалось включить микрофон.';
 }
 
 async function startListening(auto){
@@ -681,10 +691,10 @@ async function startListening(auto){
     return;
   }
   if (!audio){ setPhase('idle'); return; }
-  if (audio.dead){ setPhase('idle'); if (!auto) showBubble(null, 'The microphone didn’t respond. Tap again.'); return; }
+  if (audio.dead){ setPhase('idle'); if (!auto) showBubble(null, 'Микрофон не отвечает. Нажми ещё раз.'); return; }
   if (audio.empty){
     setPhase('idle');
-    showBubble(null, pending ? (lastQuestion || 'When is it due?') : 'I didn’t catch that. Try again.');
+    showBubble(null, pending ? (lastQuestion || 'Когда нужно сделать?') : 'Не расслышал. Попробуй ещё раз.');
     return;
   }
   setPhase('thinking');
@@ -693,7 +703,7 @@ async function startListening(auto){
     await handle(r);
   }catch(e){
     setPhase('idle');
-    showBubble(null, e.userMessage || ('Error: ' + e.message));
+    showBubble(null, e.userMessage || ('Ошибка: ' + e.message));
     if (e.key) openSettings();
   }
 }
@@ -722,7 +732,7 @@ function openSettings(){
   $('#ttsToggle').checked = settings.tts;
   $('#alToggle').checked = settings.autoListen;
   $('#checkRes').textContent = '';
-  $('#modelLine').textContent = settings.model ? 'Model: ' + settings.model : '';
+  $('#modelLine').textContent = settings.model ? 'Модель: ' + settings.model : '';
   $('#sheet').classList.add('open');
   if (!settings.key) setTimeout(() => $('#keyInput').focus(), 320);
 }
@@ -739,20 +749,20 @@ $('#saveBtn').addEventListener('click', () => {
 $('#checkBtn').addEventListener('click', async () => {
   const key = $('#keyInput').value.trim();
   const res = $('#checkRes');
-  if (!key){ res.textContent = 'Paste a key first'; return; }
-  res.textContent = 'Checking…';
+  if (!key){ res.textContent = 'Сначала вставь ключ'; return; }
+  res.textContent = 'Проверяю…';
   try{
     const models = await discoverModels(key);
     LS.set('vt.models', models);
     if (key !== settings.key){ settings.model = ''; }
-    res.textContent = 'Key works. Testing the model…';
-    const j = await generate({ contents: [{ role: 'user', parts: [{ text: 'Reply with one word: ok' }] }] }, { key, timeout: 20000 });
-    res.textContent = `All good ✓ (${(j._ms / 1000).toFixed(1)}s)`;
-    $('#modelLine').textContent = 'Model: ' + j._model;
+    res.textContent = 'Ключ работает. Пробую модель…';
+    const j = await generate({ contents: [{ role: 'user', parts: [{ text: 'Ответь одним словом: ок' }] }] }, { key, timeout: 20000 });
+    res.textContent = `Всё работает ✓ (${(j._ms / 1000).toFixed(1)} с)`;
+    $('#modelLine').textContent = 'Модель: ' + j._model;
   }catch(e){
-    if (e.key) res.textContent = 'Key rejected';
-    else if (e.userMessage) { res.textContent = 'Model not responding'; $('#modelLine').textContent = e.userMessage; }
-    else res.textContent = e.status ? 'Error: ' + e.message : 'No connection: ' + e.message;
+    if (e.key) res.textContent = 'Ключ не подошёл';
+    else if (e.userMessage) { res.textContent = 'Модель не отвечает'; $('#modelLine').textContent = e.userMessage; }
+    else res.textContent = e.status ? 'Ошибка: ' + e.message : 'Нет связи: ' + e.message;
   }
 });
 
@@ -761,7 +771,8 @@ $('#checkBtn').addEventListener('click', async () => {
   try{
     const c = document.createElement('canvas'); c.width = c.height = 180;
     const g = c.getContext('2d');
-    g.fillStyle = '#FF5B37'; g.fillRect(0, 0, 180, 180);
+    const bg = g.createLinearGradient(0, 0, 180, 180); bg.addColorStop(0, '#2F6BFF'); bg.addColorStop(.52, '#1FA2FF'); bg.addColorStop(1, '#6A5CFF');
+    g.fillStyle = bg; g.fillRect(0, 0, 180, 180);
     g.strokeStyle = '#fff'; g.fillStyle = '#fff'; g.lineWidth = 11; g.lineCap = 'round';
     const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
     rr(68, 34, 44, 74, 22); g.fill();
