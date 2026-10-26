@@ -11,6 +11,7 @@
 <meta name="theme-color" content="#0E0E0F" media="(prefers-color-scheme: dark)">
 <meta name="format-detection" content="telephone=no">
 <title>Задачи</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=2">
 <style>
 :root{
   --bg:#F5F4F1; --surface:#FFFFFF; --text:#17181B; --muted:#8A8B90; --faint:#C6C7CC;
@@ -40,8 +41,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 .app{padding:calc(var(--safe-t) + 18px) 18px calc(var(--safe-b) + 200px);max-width:620px;margin:0 auto}
 header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 2px 4px}
 h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin:0}
-.icon-btn{width:40px;height:40px;flex:none;border-radius:50%;border:0;background:var(--surface);color:var(--muted);display:grid;place-items:center}
-.icon-btn svg{width:20px;height:20px}
+.icon-btn{width:46px;height:46px;flex:none;border-radius:50%;border:0;background:var(--surface);color:var(--muted);display:grid;place-items:center}
+.icon-btn svg{width:26px;height:26px}
 
 .group{margin-top:22px}
 .group h2{font-size:13px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 6px 8px}
@@ -59,8 +60,20 @@ h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin
 .item.leaving{opacity:0;max-height:0!important}
 .item.enter{animation:enter 1.6s ease both}
 @keyframes enter{0%{opacity:0;transform:translateY(-6px);background:var(--accent-soft)}30%{opacity:1;transform:none;background:var(--accent-soft)}100%{background:transparent}}
-.body{flex:1;min-width:0;padding:15px 0}
+.body{flex:1;min-width:0;padding:12px 0 14px}
 .title{font-size:17px;line-height:1.3;overflow-wrap:anywhere;transition:color .2s}
+.tag{display:inline-flex;align-items:center;gap:5px;border:0;border-radius:7px;padding:1px 8px 1px 7px;margin:0 0 5px;
+  font-size:12px;font-weight:600;line-height:19px;position:relative;background:var(--tag-bg);color:var(--tag-fg)}
+.tag::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.tag::after{content:"";position:absolute;inset:-10px -8px}
+.tag.high{--tag-bg:rgba(214,58,40,.11);--tag-fg:#D33A28}
+.tag.normal{--tag-bg:rgba(47,107,255,.1);--tag-fg:#2F6BFF}
+.tag.low{--tag-bg:rgba(23,24,27,.06);--tag-fg:#8A8B90}
+@media (prefers-color-scheme: dark){
+  .tag.high{--tag-bg:rgba(255,107,91,.16);--tag-fg:#FF7B6B}
+  .tag.normal{--tag-bg:rgba(77,130,255,.18);--tag-fg:#7FA6FF}
+  .tag.low{--tag-bg:rgba(255,255,255,.07);--tag-fg:#8C8E95}
+}
 
 .empty{margin-top:22vh;text-align:center;color:var(--muted);padding:0 24px}
 .empty i{font-style:normal;color:var(--text)}
@@ -70,22 +83,6 @@ h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin
   background:linear-gradient(to bottom,rgba(0,0,0,0),var(--bg) 42%);
   display:flex;flex-direction:column;align-items:center}
 .dock > *{pointer-events:auto;position:relative;z-index:1}
-
-/* recording glow */
-.dock > .glow{position:fixed;z-index:0;left:-15%;right:-15%;bottom:-80px;height:250px;pointer-events:none;
-  opacity:0;transition:opacity .45s ease}
-.glow .lift{position:absolute;inset:0;transform-origin:50% 100%;
-  transform:scaleY(calc(.7 + var(--lvl,0)*.65));transition:transform .12s linear}
-.glow i{position:absolute;bottom:0;width:58%;height:100%;border-radius:50%;filter:blur(36px)}
-.glow i:nth-child(1){left:0;background:radial-gradient(closest-side,rgba(47,107,255,.95),rgba(47,107,255,0));animation:d1 5.5s ease-in-out infinite alternate}
-.glow i:nth-child(2){left:21%;background:radial-gradient(closest-side,rgba(0,200,255,.9),rgba(0,200,255,0));animation:d2 4.5s ease-in-out infinite alternate}
-.glow i:nth-child(3){right:0;background:radial-gradient(closest-side,rgba(106,92,255,.9),rgba(106,92,255,0));animation:d3 6.5s ease-in-out infinite alternate}
-@keyframes d1{to{transform:translate(18%,6%) scale(1.1)}}
-@keyframes d2{from{transform:translateX(-12%) scale(.95)}to{transform:translateX(14%) scale(1.15)}}
-@keyframes d3{to{transform:translate(-20%,4%) scale(1.08)}}
-.glow.on{opacity:1}
-.glow.soft{opacity:.5;animation:soft 1.8s ease-in-out infinite}
-@keyframes soft{0%,100%{opacity:.3}50%{opacity:.6}}
 
 .bubble{width:100%;max-width:520px;background:var(--surface);border-radius:20px;padding:14px 44px 14px 16px;
   box-shadow:var(--shadow);margin-bottom:18px;
@@ -101,11 +98,24 @@ h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin
 .mic{width:76px;height:76px;border-radius:50%;border:0;background:var(--text);color:var(--bg);
   display:grid;place-items:center;transition:transform .12s linear,background .25s,color .25s,box-shadow .3s}
 .mic:active{transform:scale(.94)}
-.mic svg{width:30px;height:30px;position:relative;z-index:1}
-.mic .spin{position:absolute;inset:-6px;border-radius:50%;border:2.5px solid transparent;border-top-color:var(--accent);opacity:0}
-.mic.listening,.mic.speaking{background:var(--grad);color:#fff;box-shadow:0 8px 28px rgba(47,107,255,.45)}
-.mic.listening{transform:scale(calc(1 + var(--lvl,0)*.09))}
-.mic.thinking .spin{opacity:1;animation:spin .8s linear infinite}
+.mic svg{width:30px;height:30px;position:relative;z-index:2}
+.mic .bg{position:absolute;inset:0;border-radius:50%;background:var(--grad);opacity:0;transition:opacity .25s;z-index:1}
+.mic .wave{position:absolute;inset:0;border-radius:50%;background:var(--grad);opacity:0;pointer-events:none;z-index:0}
+.mic .level{position:absolute;inset:-7px;border-radius:50%;background:var(--accent-soft);opacity:0;z-index:0;
+  transform:scale(calc(1 + var(--lvl,0)*.32));transition:transform .1s linear,opacity .25s}
+.mic .spin{position:absolute;inset:-7px;border-radius:50%;opacity:0;z-index:0;
+  background:conic-gradient(from 0deg,rgba(47,107,255,0) 0 20%,#2F6BFF 55%,#1FA2FF 80%,#6A5CFF);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3px));
+          mask:radial-gradient(farthest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3px))}
+.mic.listening,.mic.speaking{color:#fff;box-shadow:0 8px 26px rgba(47,107,255,.4)}
+.mic.listening .bg,.mic.speaking .bg{opacity:1}
+.mic.listening .level{opacity:1}
+.mic.listening .wave{animation:ripple 1.8s cubic-bezier(.2,.6,.35,1) infinite}
+.mic.listening .wave + .wave{animation-delay:.9s}
+.mic.speaking .wave{animation:ripple 2.6s ease-out infinite}
+.mic.speaking .wave + .wave{animation-delay:1.3s}
+.mic.thinking .spin{opacity:1;animation:spin .9s linear infinite}
+@keyframes ripple{0%{transform:scale(1);opacity:.35}100%{transform:scale(1.55);opacity:0}}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 .toast{position:fixed;left:50%;top:calc(var(--safe-t) + 10px);z-index:20;transform:translate(-50%,-30px);
@@ -159,7 +169,6 @@ h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin
 </div>
 
 <div class="dock">
-  <div class="glow" id="glow"><div class="lift"><i></i><i></i><i></i></div></div>
   <div class="bubble" id="bubble">
     <div class="heard" id="heard"></div>
     <div class="reply" id="reply"></div>
@@ -168,7 +177,7 @@ h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin
     </button>
   </div>
   <button class="mic" id="mic" aria-label="Говорить">
-    <span class="spin"></span>
+    <span class="wave"></span><span class="wave"></span><span class="level"></span><span class="spin"></span><span class="bg"></span>
     <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
   </button>
 </div>
@@ -237,6 +246,10 @@ function groupOf(iso){
   return { key: iso, label: `${cap(fmtWd.format(d))}, ${longDate(d)}`, cls: 'later' };
 }
 const plural = (n, f) => { const a = n % 10, b = n % 100; return f[a === 1 && b !== 11 ? 0 : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 1 : 2]; };
+const PRIO = { high: 'Важно', normal: 'Обычно', low: 'Потом' };
+const PRIO_RANK = { high: 0, normal: 1, low: 2 };
+const prioOf = p => PRIO[p] ? p : 'normal';
+const NEXT_PRIO = { high: 'normal', normal: 'low', low: 'high' };
 const nTasks = n => `${n} ${plural(n, ['задача','задачи','задач'])}`;
 
 /* ---------- render ---------- */
@@ -256,7 +269,7 @@ function render(){
   }
   for (const k of [...groups.keys()].sort()){
     const g = groups.get(k);
-    g.items.sort((a, b) => a.created - b.created);
+    g.items.sort((a, b) => PRIO_RANK[prioOf(a.priority)] - PRIO_RANK[prioOf(b.priority)] || a.created - b.created);
     const sec = document.createElement('section');
     sec.className = 'group ' + g.cls;
     const h = document.createElement('h2'); h.textContent = g.label; sec.appendChild(h);
@@ -276,8 +289,13 @@ function itemEl(t){
   btn.innerHTML = '<span></span>';
   btn.addEventListener('click', () => completeTasks([t], true));
   const body = document.createElement('div'); body.className = 'body';
+  const p = prioOf(t.priority);
+  const tag = document.createElement('button');
+  tag.className = 'tag ' + p; tag.textContent = PRIO[p];
+  tag.setAttribute('aria-label', 'Приоритет: ' + PRIO[p] + '. Нажми, чтобы сменить');
+  tag.addEventListener('click', () => { t.priority = NEXT_PRIO[p]; saveTasks(); render(); });
   const title = document.createElement('div'); title.className = 'title'; title.textContent = t.title;
-  body.appendChild(title);
+  body.append(tag, title);
   el.append(btn, body);
   return el;
 }
@@ -287,7 +305,7 @@ const newId = () => { let id; do { id = Math.random().toString(36).slice(2, 7); 
 function addTasks(list){
   for (const t of list){
     const id = newId();
-    tasks.push({ id, title: t.title, due: t.due || null, created: Date.now() });
+    tasks.push({ id, title: t.title, due: t.due || null, priority: prioOf(t.priority), created: Date.now() });
     freshIds.add(id);
   }
   saveTasks(); render();
@@ -350,14 +368,12 @@ function setPhase(p){
   const mic = $('#mic');
   mic.className = 'mic ' + p;
   $('#micIcon').innerHTML = (p === 'listening' || p === 'speaking') ? ICON_STOP : ICON_MIC;
-  $('#glow').className = 'glow' + (p === 'listening' ? ' on' : (p === 'thinking' || p === 'speaking') ? ' soft' : '');
   if (p !== 'listening') setLevel(0, true);
 }
 function setLevel(v, reset){
   lvl = reset ? 0 : lvl * 0.55 + v * 0.45;
   const val = lvl.toFixed(3);
   $('#mic').style.setProperty('--lvl', val);
-  $('#glow').style.setProperty('--lvl', val);
 }
 
 /* ---------- recorder (PCM → WAV) ---------- */
@@ -492,10 +508,11 @@ const SYSTEM = `Ты ведёшь личный список задач голо�
 
 Верни JSON:
 - heard: что сказал пользователь, по тем же правилам языка.
-- action: "add", "ask_due", "complete" или "none".
-- tasks: [{title, due}]. title — коротко, с заглавной буквы, в форме действия, без даты и без «мне нужно» (пример: «Позвонить маме», «Обновить макеты в Figma»). due — "YYYY-MM-DD" или null.
+- action: "add", "ask_due", "complete", "update" или "none".
+- tasks: [{title, due, priority}]. title — коротко, с заглавной буквы, в форме действия, без даты и без «мне нужно» (пример: «Позвонить маме», «Обновить макеты в Figma»). due — "YYYY-MM-DD" или null. priority — "high", "normal" или "low".
+- updates: [{id, priority, due, clear_due}] — изменения существующих задач для "update" (указывай только то, что меняется; clear_due = true, если срок нужно убрать).
 - complete_ids: id из current_tasks, которые пользователь сделал или просит убрать.
-- reply: одна короткая фраза по-русски для озвучки, без эмодзи и разметки. Для "add" и "complete" — пустая строка.
+- reply: одна короткая фраза по-русски для озвучки, без эмодзи и разметки. Для "add", "complete" и "update" — пустая строка.
 
 Правила:
 1. Новая задача со сроком → "add". Если пользователь прямо сказал, что срока нет («без срока», «когда-нибудь») → "add" с due = null.
@@ -503,14 +520,17 @@ const SYSTEM = `Ты ведёшь личный список задач голо�
 3. pending не null → это ответ про срок: "add" для задач из pending с проставленным due. «Не знаю», «без срока» или непонятно → due = null. Если вместо ответа надиктованы новые задачи — "add" и pending (due = null), и новых. Дважды не спрашивай.
 4. Пользователь говорит, что сделал задачу, или просит её убрать → "complete" с подходящими id.
 5. Непонятно или не про задачи → "none" с короткой репликой.
-6. Даты считай от today (день недели указан): «в пятницу» — ближайшая будущая пятница (если сегодня пятница — сегодня); «на этой неделе», «до конца недели» — ближайшее воскресенье; «на следующей неделе» — воскресенье следующей недели; «через N дней» — today + N; «в конце месяца» — последний день месяца; «в течение месяца» — today + 30. Приблизительные сроки округляй до конкретной даты.`;
+6. Приоритет: "high", если звучит «важно», «срочно», «обязательно», «горит», «в первую очередь»; "low", если «не срочно», «не горит», «когда будет время», «не важно», «если успею»; иначе "normal". Про приоритет не переспрашивай.
+7. Пользователь просит поменять существующую задачу («сделай звонок маме важным», «перенеси отчёт на понедельник», «убери срок у фотографий») → "update" с id из current_tasks.
+8. Даты считай от today (день недели указан): «в пятницу» — ближайшая будущая пятница (если сегодня пятница — сегодня); «на этой неделе», «до конца недели» — ближайшее воскресенье; «на следующей неделе» — воскресенье следующей недели; «через N дней» — today + N; «в конце месяца» — последний день месяца; «в течение месяца» — today + 30. Приблизительные сроки округляй до конкретной даты.`;
 
 const SCHEMA = {
   type: 'OBJECT',
   properties: {
     heard: { type: 'STRING' },
     action: { type: 'STRING' },
-    tasks: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, due: { type: 'STRING', nullable: true } }, required: ['title'] } },
+    updates: { type: 'ARRAY', items: { type: 'OBJECT', properties: { id: { type: 'STRING' }, priority: { type: 'STRING', nullable: true }, due: { type: 'STRING', nullable: true }, clear_due: { type: 'BOOLEAN', nullable: true } }, required: ['id'] } },
+    tasks: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, due: { type: 'STRING', nullable: true }, priority: { type: 'STRING' } }, required: ['title'] } },
     complete_ids: { type: 'ARRAY', items: { type: 'STRING' } },
     reply: { type: 'STRING' }
   },
@@ -611,7 +631,7 @@ async function askGemini(wav){
   const ctx = {
     today: todayISO(),
     weekday: fmtWd.format(t),
-    current_tasks: tasks.map(x => ({ id: x.id, title: x.title, due: x.due })),
+    current_tasks: tasks.map(x => ({ id: x.id, title: x.title, due: x.due, priority: prioOf(x.priority) })),
     pending: pending,
     last_question: lastQuestion
   };
@@ -640,7 +660,7 @@ async function handle(r){
   let reply = (r.reply || '').trim();
   const list = (r.tasks || [])
     .filter(t => t && typeof t.title === 'string' && t.title.trim())
-    .map(t => ({ title: t.title.trim(), due: validISO(t.due) ? t.due : null }));
+    .map(t => ({ title: t.title.trim(), due: validISO(t.due) ? t.due : null, priority: prioOf(t.priority) }));
   const hadPending = !!pending;
 
   // Добавление и отметка проходят молча: подтверждение видно в самом списке.
@@ -652,7 +672,20 @@ async function handle(r){
     addTasks(list); pending = null; lastQuestion = null;
     hideBubble(); setPhase('idle'); return;
   }
-  if (action === 'complete'){
+  if (action === 'update'){
+    let n = 0;
+    for (const u of (r.updates || [])){
+      const t = tasks.find(x => x.id === u.id);
+      if (!t) continue;
+      if (PRIO[u.priority]) t.priority = u.priority;
+      if (validISO(u.due)) t.due = u.due;
+      else if (u.clear_due) t.due = null;
+      freshIds.add(t.id); n++;
+    }
+    pending = null; lastQuestion = null;
+    if (n){ saveTasks(); render(); hideBubble(); setPhase('idle'); return; }
+    reply = 'Не нашёл такую задачу.';
+  } else if (action === 'complete'){
     const ids = r.complete_ids || [];
     const found = tasks.filter(t => ids.includes(t.id));
     pending = null; lastQuestion = null;
@@ -767,22 +800,6 @@ $('#checkBtn').addEventListener('click', async () => {
 });
 
 /* ---------- home screen icon ---------- */
-(function makeIcon(){
-  try{
-    const c = document.createElement('canvas'); c.width = c.height = 180;
-    const g = c.getContext('2d');
-    const bg = g.createLinearGradient(0, 0, 180, 180); bg.addColorStop(0, '#2F6BFF'); bg.addColorStop(.52, '#1FA2FF'); bg.addColorStop(1, '#6A5CFF');
-    g.fillStyle = bg; g.fillRect(0, 0, 180, 180);
-    g.strokeStyle = '#fff'; g.fillStyle = '#fff'; g.lineWidth = 11; g.lineCap = 'round';
-    const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
-    rr(68, 34, 44, 74, 22); g.fill();
-    g.beginPath(); g.arc(90, 84, 42, 0.12 * Math.PI, 0.88 * Math.PI); g.stroke();
-    g.beginPath(); g.moveTo(90, 128); g.lineTo(90, 148); g.stroke();
-    const l = document.createElement('link'); l.rel = 'apple-touch-icon'; l.href = c.toDataURL('image/png');
-    document.head.appendChild(l);
-  }catch(e){}
-})();
-
 render();
 setPhase('idle');
 if (!settings.key) setTimeout(openSettings, 400);
