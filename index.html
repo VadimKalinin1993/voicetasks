@@ -79,7 +79,7 @@ h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin
 .bubble.show{opacity:1;transform:none;pointer-events:auto}
 .bubble .heard{color:var(--muted);font-size:14px;margin-bottom:4px}
 .bubble .heard:empty{display:none}
-.bubble .reply{font-size:16px;line-height:1.35}
+.bubble .reply{font-size:16px;line-height:1.35;white-space:pre-line;overflow-wrap:anywhere}
 .bubble .x{position:absolute;top:8px;right:8px;width:30px;height:30px;border:0;border-radius:50%;background:none;color:var(--muted);display:grid;place-items:center}
 .bubble .x svg{width:16px;height:16px}
 
@@ -131,7 +131,7 @@ h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin
 .switch input:checked{background:var(--accent)}
 .switch input:checked::after{transform:translateX(20px)}
 .primary{width:100%;border:0;border-radius:14px;background:var(--text);color:var(--bg);font-weight:600;padding:15px;margin-top:20px;font-size:17px}
-.model{font-size:12px;color:var(--muted);margin-top:12px;text-align:center}
+.model{font-size:12px;color:var(--muted);margin-top:12px;text-align:center;white-space:pre-line;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -540,38 +540,65 @@ async function discoverModels(key){
   return names.sort((a, b) => score(b) - score(a));
 }
 
-async function generate(body){
-  const key = settings.key;
+function thinkingFor(m){
+  if (/^gemini-[3-9]/.test(m)) return { thinkingLevel: 'low' };
+  if (/^gemini-2\.5-flash/.test(m)) return { thinkingBudget: 0 };
+  return null;
+}
+async function callModel(m, key, body, timeoutMs){
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try{
+    return await fetch(`${API}/models/${m}:generateContent?key=${encodeURIComponent(key)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal
+    });
+  } finally { clearTimeout(timer); }
+}
+
+async function generate(body, opts = {}){
+  const key = opts.key || settings.key;
+  const timeoutMs = opts.timeout || 25000;
   let models = LS.get('vt.models', null);
   if (!models || !models.length){
     try{ models = await discoverModels(key); LS.set('vt.models', models); }
     catch(e){ if (isKeyError(e)) throw keyErr(); models = []; }
   }
-  const cands = [...new Set([settings.model, ...models, ...FALLBACK_MODELS].filter(Boolean))];
-  let last = null, rateLimited = false;
+  const cands = [...new Set([settings.model, ...models, ...FALLBACK_MODELS].filter(Boolean))].slice(0, 4);
+  const log = [];
+  let rateLimited = false, last = null;
   for (const m of cands){
-    let r;
-    try{
-      r = await fetch(`${API}/models/${m}:generateContent?key=${encodeURIComponent(key)}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-      });
-    }catch(e){ const x = new Error('offline'); x.userMessage = 'Нет связи. Проверь интернет.'; throw x; }
-    if (r.ok){
-      if (settings.model !== m){ settings.model = m; saveSettings(); }
-      return r.json();
+    let think = thinkingFor(m);
+    for (let attempt = 0; attempt < 2; attempt++){
+      const b = JSON.parse(JSON.stringify(body));
+      if (think) b.generationConfig = Object.assign({}, b.generationConfig, { thinkingConfig: think });
+      const t0 = performance.now();
+      let r;
+      try{ r = await callModel(m, key, b, timeoutMs); }
+      catch(e){
+        const what = e.name === 'AbortError' ? `не ответила за ${Math.round(timeoutMs / 1000)} с` : `сеть: ${e.message}`;
+        log.push(`${m}: ${what}`);
+        last = e; break;
+      }
+      if (r.ok){
+        if (settings.model !== m){ settings.model = m; saveSettings(); }
+        const j = await r.json();
+        j._model = m; j._ms = Math.round(performance.now() - t0);
+        return j;
+      }
+      last = await apiError(r);
+      if (isKeyError(last)) throw keyErr();
+      if (think && r.status === 400 && /thinking/i.test(last.message)){ think = null; continue; }
+      log.push(`${m}: ${last.status} ${last.message.slice(0, 90)}`);
+      if (last.status === 404 || /not found|not supported|deprecat/i.test(last.message)){
+        if (settings.model === m){ settings.model = ''; saveSettings(); }
+      } else if (last.status === 429) rateLimited = true;
+      else if (last.status < 500){ const e = new Error(last.message); e.userMessage = 'Gemini вернул ошибку:\n' + log.join('\n'); throw e; }
+      break;
     }
-    last = await apiError(r);
-    if (isKeyError(last)) throw keyErr();
-    if (last.status === 404 || /not found|not supported|deprecat/i.test(last.message)){
-      if (settings.model === m){ settings.model = ''; saveSettings(); }
-      continue;
-    }
-    if (last.status === 429){ rateLimited = true; continue; }
-    if (last.status >= 500) continue;
-    throw last;
   }
-  if (rateLimited){ const e = new Error('quota'); e.userMessage = 'Лимит бесплатных запросов исчерпан. Попробуй чуть позже.'; throw e; }
-  throw last || new Error('Нет доступной модели');
+  const e = new Error('failed');
+  e.userMessage = (rateLimited ? 'Лимит бесплатных запросов исчерпан. Попробуй чуть позже.' : 'Не получилось достучаться до Gemini.') + '\n' + log.join('\n');
+  throw e;
 }
 
 async function askGemini(wav){
@@ -715,10 +742,15 @@ $('#checkBtn').addEventListener('click', async () => {
   try{
     const models = await discoverModels(key);
     LS.set('vt.models', models);
-    res.textContent = models.length ? 'Ключ работает ✓' : 'Ключ работает, но подходящей модели не нашлось';
-    $('#modelLine').textContent = models.length ? 'Модель: ' + models[0] : '';
+    if (key !== settings.key){ settings.model = ''; }
+    res.textContent = 'Ключ работает. Пробую модель…';
+    const j = await generate({ contents: [{ role: 'user', parts: [{ text: 'Ответь одним словом: ок' }] }] }, { key, timeout: 20000 });
+    res.textContent = `Всё работает ✓ (${(j._ms / 1000).toFixed(1)} с)`;
+    $('#modelLine').textContent = 'Модель: ' + j._model;
   }catch(e){
-    res.textContent = isKeyError(e) ? 'Ключ не подошёл' : (e.status ? 'Ошибка: ' + e.message : 'Нет связи');
+    if (e.key) res.textContent = 'Ключ не подошёл';
+    else if (e.userMessage) { res.textContent = 'Модель не отвечает'; $('#modelLine').textContent = e.userMessage; }
+    else res.textContent = e.status ? 'Ошибка: ' + e.message : 'Нет связи: ' + e.message;
   }
 });
 
