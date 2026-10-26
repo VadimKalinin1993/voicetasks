@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Задачи">
+<meta name="theme-color" content="#F5F3EE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0E0F" media="(prefers-color-scheme: dark)">
+<meta name="format-detection" content="telephone=no">
+<title>Задачи</title>
+<style>
+:root{
+  --bg:#F5F3EE; --surface:#FFFFFF; --text:#1A1916; --muted:#8C887F; --faint:#C4C0B7;
+  --line:rgba(26,25,22,.08); --accent:#FF5B37; --accent-soft:rgba(255,91,55,.16);
+  --danger:#D6402E; --shadow:0 12px 32px rgba(26,25,22,.12);
+  --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0E0E0F; --surface:#1B1B1D; --text:#F3F1EC; --muted:#8F8B84; --faint:#4E4B47;
+    --line:rgba(255,255,255,.07); --accent:#FF6A48; --accent-soft:rgba(255,106,72,.2);
+    --danger:#FF6B5B; --shadow:0 12px 32px rgba(0,0,0,.55);
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text)}
+body{
+  font:17px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none;
+  touch-action:manipulation;overscroll-behavior-y:none;
+}
+input{-webkit-user-select:text;user-select:text}
+button{font:inherit;color:inherit;cursor:pointer}
+
+.app{padding:calc(var(--safe-t) + 18px) 18px calc(var(--safe-b) + 240px);max-width:620px;margin:0 auto}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:6px 2px 8px}
+h1{font-size:34px;line-height:1.08;font-weight:700;letter-spacing:-.025em;margin:0}
+.count{color:var(--muted);font-size:15px;margin-top:5px}
+.icon-btn{width:40px;height:40px;flex:none;border-radius:50%;border:0;background:var(--surface);color:var(--muted);display:grid;place-items:center}
+.icon-btn svg{width:20px;height:20px}
+
+.group{margin-top:22px}
+.group h2{font-size:13px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 6px 8px}
+.group.overdue h2{color:var(--danger)}
+.card{background:var(--surface);border-radius:18px;overflow:hidden}
+.item{display:flex;align-items:center;position:relative;padding:0 16px 0 4px;overflow:hidden;
+  transition:opacity .25s ease,max-height .32s ease .08s}
+.item + .item::before{content:"";position:absolute;top:0;left:52px;right:0;height:1px;background:var(--line)}
+.radio{flex:none;width:48px;height:56px;border:0;background:none;padding:0;display:grid;place-items:center}
+.radio span{width:24px;height:24px;border-radius:50%;border:2px solid var(--faint);display:grid;place-items:center;transition:border-color .2s}
+.radio span::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--accent);transform:scale(0);transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
+.item.done .radio span{border-color:var(--accent)}
+.item.done .radio span::after{transform:scale(1)}
+.item.done .title{color:var(--muted)}
+.item.leaving{opacity:0;max-height:0!important}
+.item.enter{animation:enter .45s ease both}
+@keyframes enter{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.body{flex:1;min-width:0;padding:15px 0 14px}
+.title{font-size:17px;line-height:1.3;overflow-wrap:anywhere;transition:color .2s}
+.due{font-size:13px;color:var(--muted);margin-top:2px}
+.due.over{color:var(--danger)}
+
+.empty{margin-top:22vh;text-align:center;color:var(--muted);padding:0 24px}
+.empty b{display:block;color:var(--text);font-size:19px;font-weight:600;margin-bottom:8px}
+.empty i{font-style:normal;color:var(--text)}
+
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:5;pointer-events:none;
+  padding:56px 18px calc(var(--safe-b) + 16px);
+  background:linear-gradient(to bottom,rgba(0,0,0,0),var(--bg) 42%);
+  display:flex;flex-direction:column;align-items:center}
+.dock > *{pointer-events:auto}
+.bubble{width:100%;max-width:520px;background:var(--surface);border-radius:20px;padding:14px 44px 14px 16px;
+  box-shadow:var(--shadow);margin-bottom:18px;position:relative;
+  opacity:0;transform:translateY(10px);transition:opacity .25s,transform .25s;pointer-events:none}
+.bubble.show{opacity:1;transform:none;pointer-events:auto}
+.bubble .heard{color:var(--muted);font-size:14px;margin-bottom:4px}
+.bubble .heard:empty{display:none}
+.bubble .reply{font-size:16px;line-height:1.35}
+.bubble .x{position:absolute;top:8px;right:8px;width:30px;height:30px;border:0;border-radius:50%;background:none;color:var(--muted);display:grid;place-items:center}
+.bubble .x svg{width:16px;height:16px}
+
+.mic{width:78px;height:78px;border-radius:50%;border:0;background:var(--text);color:var(--bg);
+  display:grid;place-items:center;position:relative;transition:transform .15s,background .2s,color .2s}
+.mic:active{transform:scale(.94)}
+.mic svg{width:30px;height:30px;position:relative;z-index:1}
+.mic .ring{position:absolute;inset:-10px;border-radius:50%;background:var(--accent-soft);opacity:0;
+  transform:scale(calc(.85 + var(--lvl,0)*.45));transition:transform .09s linear,opacity .2s}
+.mic .spin{position:absolute;inset:-6px;border-radius:50%;border:2.5px solid transparent;border-top-color:var(--accent);opacity:0}
+.mic.listening{background:var(--accent);color:#fff}
+.mic.listening .ring{opacity:1}
+.mic.thinking .spin{opacity:1;animation:spin .8s linear infinite}
+.mic.speaking .ring{opacity:1;animation:breathe 1.4s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes breathe{0%,100%{transform:scale(.9)}50%{transform:scale(1.12)}}
+.status{margin-top:12px;font-size:13px;color:var(--muted);min-height:17px;text-align:center}
+
+.toast{position:fixed;left:50%;top:calc(var(--safe-t) + 10px);z-index:20;transform:translate(-50%,-140%);
+  background:var(--text);color:var(--bg);border-radius:14px;padding:10px 10px 10px 16px;
+  display:flex;align-items:center;gap:12px;font-size:15px;max-width:calc(100% - 32px);
+  transition:transform .3s cubic-bezier(.2,.9,.3,1.1);box-shadow:var(--shadow)}
+.toast.show{transform:translate(-50%,0)}
+.toast span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toast button{border:0;background:none;color:var(--accent);font-weight:600;padding:4px 8px;flex:none}
+
+.sheet-wrap{position:fixed;inset:0;z-index:30;visibility:hidden}
+.sheet-wrap.open{visibility:visible}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.35);opacity:0;transition:opacity .25s}
+.sheet-wrap.open .scrim{opacity:1}
+.sheet{position:absolute;left:0;right:0;bottom:0;max-width:620px;margin:0 auto;background:var(--bg);
+  border-radius:22px 22px 0 0;padding:10px 20px calc(var(--safe-b) + 20px);
+  transform:translateY(100%);transition:transform .3s cubic-bezier(.2,.9,.3,1)}
+.sheet-wrap.open .sheet{transform:none}
+.grab{width:38px;height:5px;border-radius:3px;background:var(--faint);margin:0 auto 14px}
+.sheet h3{font-size:22px;margin:0 0 6px;letter-spacing:-.01em}
+.hint{color:var(--muted);font-size:14px;margin:0 0 16px}
+.field{display:block;background:var(--surface);border-radius:14px;padding:10px 14px}
+.field span{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+.field input{width:100%;border:0;background:none;color:var(--text);font-size:17px;padding:2px 0;outline:none;font-family:ui-monospace,Menlo,monospace}
+.check{display:flex;align-items:center;gap:12px;margin:10px 0 18px}
+.check .hint{margin:0}
+.ghost{border:0;background:var(--surface);border-radius:12px;padding:9px 14px;font-size:15px;flex:none}
+.switch{display:flex;align-items:center;justify-content:space-between;background:var(--surface);padding:12px 14px;font-size:16px}
+.switches{border-radius:14px;overflow:hidden}
+.switch + .switch{border-top:1px solid var(--line)}
+.switch input{appearance:none;-webkit-appearance:none;width:50px;height:30px;border-radius:15px;background:var(--faint);position:relative;transition:background .2s;margin:0;flex:none}
+.switch input::after{content:"";position:absolute;top:2px;left:2px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .2s}
+.switch input:checked{background:var(--accent)}
+.switch input:checked::after{transform:translateX(20px)}
+.primary{width:100%;border:0;border-radius:14px;background:var(--text);color:var(--bg);font-weight:600;padding:15px;margin-top:20px;font-size:17px}
+.model{font-size:12px;color:var(--muted);margin-top:12px;text-align:center}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Задачи</h1>
+      <div class="count" id="count"></div>
+    </div>
+    <button class="icon-btn" id="gear" aria-label="Настройки">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+    </button>
+  </header>
+  <main id="list"></main>
+</div>
+
+<div class="dock">
+  <div class="bubble" id="bubble">
+    <div class="heard" id="heard"></div>
+    <div class="reply" id="reply"></div>
+    <button class="x" id="bubbleClose" aria-label="Закрыть">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <button class="mic" id="mic" aria-label="Говорить">
+    <span class="ring"></span><span class="spin"></span>
+    <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
+  </button>
+  <div class="status" id="status"></div>
+</div>
+
+<div class="toast" id="toast"><span id="toastText"></span><button id="toastUndo">Вернуть</button></div>
+
+<div class="sheet-wrap" id="sheet">
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <h3>Настройки</h3>
+    <p class="hint">Ключ Gemini из Google AI Studio. Он хранится только на этом телефоне.</p>
+    <label class="field"><span>Ключ API</span>
+      <input id="keyInput" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="AIza…">
+    </label>
+    <div class="check"><button class="ghost" id="checkBtn">Проверить ключ</button><p class="hint" id="checkRes"></p></div>
+    <div class="switches">
+      <label class="switch"><span>Озвучивать ответы</span><input type="checkbox" id="ttsToggle"></label>
+      <label class="switch"><span>Сразу слушать ответ на вопрос</span><input type="checkbox" id="alToggle"></label>
+    </div>
+    <button class="primary" id="saveBtn">Сохранить</button>
+    <div class="model" id="modelLine"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ---------- storage ---------- */
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const settings = Object.assign({ key:'', model:'', tts:true, autoListen:true }, LS.get('vt.settings', {}));
+const saveSettings = () => LS.set('vt.settings', settings);
+let tasks = LS.get('vt.tasks', []);
+const saveTasks = () => LS.set('vt.tasks', tasks);
+
+let pending = null;        // задачи, ждущие срока
+let lastQuestion = null;
+let phase = 'idle';
+let speakToken = 0;
+const freshIds = new Set();
+
+const $ = s => document.querySelector(s);
+
+/* ---------- dates ---------- */
+const pad = n => String(n).padStart(2, '0');
+const isoOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseISO = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const todayISO = () => isoOf(new Date());
+const dayDiff = iso => Math.round((parseISO(iso) - parseISO(todayISO())) / 86400000);
+const validISO = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(parseISO(s).getTime());
+const fmtDay = new Intl.DateTimeFormat('ru-RU', { day:'numeric', month:'short' });
+const fmtWd = new Intl.DateTimeFormat('ru-RU', { weekday:'long' });
+const dayStr = d => fmtDay.format(d).replace('.', '');
+
+function dueText(iso){
+  if (!iso) return '';
+  const n = dayDiff(iso), d = parseISO(iso);
+  if (n < 0) return n === -1 ? 'просрочено · вчера' : `просрочено · ${dayStr(d)}`;
+  if (n === 0) return 'сегодня';
+  if (n === 1) return 'завтра';
+  if (n < 7) return `${fmtWd.format(d)}, ${dayStr(d)}`;
+  return dayStr(d) + (d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : '');
+}
+function bucketOf(iso){
+  if (!iso) return 'none';
+  const n = dayDiff(iso);
+  return n < 0 ? 'overdue' : n === 0 ? 'today' : n === 1 ? 'tomorrow' : n < 7 ? 'week' : 'later';
+}
+const GROUPS = [['overdue','Просрочено'],['today','Сегодня'],['tomorrow','Завтра'],['week','Ближайшие дни'],['later','Позже'],['none','Без срока']];
+const plural = (n, f) => { const a = n % 10, b = n % 100; return f[a === 1 && b !== 11 ? 0 : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 1 : 2]; };
+
+/* ---------- render ---------- */
+function render(){
+  const list = $('#list');
+  list.innerHTML = '';
+  $('#count').textContent = tasks.length ? `${tasks.length} ${plural(tasks.length, ['задача','задачи','задач'])}` : '';
+  if (!tasks.length){
+    list.innerHTML = `<div class="empty"><b>Пока пусто</b>Нажми на микрофон и скажи, например:<br><i>«Купить продукты завтра»</i></div>`;
+    return;
+  }
+  const by = {};
+  for (const t of tasks) (by[bucketOf(t.due)] ||= []).push(t);
+  for (const [k, label] of GROUPS){
+    const arr = by[k];
+    if (!arr) continue;
+    arr.sort((a, b) => (a.due || '').localeCompare(b.due || '') || a.created - b.created);
+    const g = document.createElement('section');
+    g.className = 'group ' + k;
+    const h = document.createElement('h2'); h.textContent = label; g.appendChild(h);
+    const card = document.createElement('div'); card.className = 'card';
+    for (const t of arr) card.appendChild(itemEl(t));
+    g.appendChild(card);
+    list.appendChild(g);
+  }
+  freshIds.clear();
+}
+function itemEl(t){
+  const el = document.createElement('div');
+  el.className = 'item' + (freshIds.has(t.id) ? ' enter' : '');
+  el.dataset.id = t.id;
+  const btn = document.createElement('button');
+  btn.className = 'radio'; btn.setAttribute('aria-label', 'Выполнено');
+  btn.innerHTML = '<span></span>';
+  btn.addEventListener('click', () => completeTasks([t], true));
+  const body = document.createElement('div'); body.className = 'body';
+  const title = document.createElement('div'); title.className = 'title'; title.textContent = t.title;
+  body.appendChild(title);
+  if (t.due){
+    const due = document.createElement('div');
+    due.className = 'due' + (dayDiff(t.due) < 0 ? ' over' : '');
+    due.textContent = dueText(t.due);
+    body.appendChild(due);
+  }
+  el.append(btn, body);
+  return el;
+}
+
+/* ---------- task ops ---------- */
+const newId = () => { let id; do { id = Math.random().toString(36).slice(2, 7); } while (tasks.some(t => t.id === id)); return id; };
+function addTasks(list){
+  for (const t of list){
+    const id = newId();
+    tasks.push({ id, title: t.title, due: t.due || null, created: Date.now() });
+    freshIds.add(id);
+  }
+  saveTasks(); render();
+}
+let lastRemoved = [];
+function completeTasks(list, byTap){
+  list = list.filter(t => tasks.includes(t));
+  if (!list.length) return;
+  const ids = new Set(list.map(t => t.id));
+  for (const id of ids){
+    const el = document.querySelector(`.item[data-id="${id}"]`);
+    if (!el) continue;
+    el.classList.add('done');
+    setTimeout(() => { el.style.maxHeight = el.offsetHeight + 'px'; el.offsetHeight; el.classList.add('leaving'); }, byTap ? 420 : 250);
+  }
+  lastRemoved = list.slice();
+  setTimeout(() => {
+    tasks = tasks.filter(t => !ids.has(t.id));
+    saveTasks(); render();
+  }, byTap ? 820 : 650);
+  toast(list.length === 1 ? `Готово: ${list[0].title}` : `Готово: ${list.length} ${plural(list.length, ['задача','задачи','задач'])}`);
+}
+function undo(){
+  for (const t of lastRemoved) if (!tasks.some(x => x.id === t.id)) tasks.push(t);
+  lastRemoved = [];
+  saveTasks(); render(); hideToast();
+}
+
+/* ---------- toast ---------- */
+let toastTimer;
+function toast(text){
+  $('#toastText').textContent = text;
+  $('#toast').classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, 4500);
+}
+function hideToast(){ $('#toast').classList.remove('show'); }
+$('#toastUndo').addEventListener('click', undo);
+
+/* ---------- bubble & phase ---------- */
+let bubbleTimer;
+function showBubble(heard, reply){
+  $('#heard').textContent = heard ? `«${heard}»` : '';
+  $('#reply').textContent = reply || '';
+  $('#bubble').classList.add('show');
+  clearTimeout(bubbleTimer);
+  if (!pending) bubbleTimer = setTimeout(() => { if (phase === 'idle' && !pending) hideBubble(); }, 12000);
+}
+function hideBubble(){ $('#bubble').classList.remove('show'); }
+$('#bubbleClose').addEventListener('click', () => {
+  if (pending){ addTasks(pending); toast('Добавлено без срока'); pending = null; lastQuestion = null; }
+  hideBubble(); setPhase(phase);
+});
+
+const ICON_MIC = '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/>';
+const ICON_STOP = '<rect x="6.5" y="6.5" width="11" height="11" rx="2.5" fill="currentColor" stroke="none"/>';
+function setPhase(p){
+  phase = p;
+  const mic = $('#mic');
+  mic.className = 'mic ' + p;
+  $('#micIcon').innerHTML = (p === 'listening' || p === 'speaking') ? ICON_STOP : ICON_MIC;
+  $('#status').textContent = {
+    idle: pending ? 'Нажми, чтобы ответить' : 'Нажми и говори',
+    listening: 'Слушаю… нажми, чтобы закончить',
+    thinking: 'Думаю…',
+    speaking: 'Нажми, чтобы прервать'
+  }[p];
+  if (p !== 'listening') mic.style.setProperty('--lvl', 0);
+}
+const setLevel = v => $('#mic').style.setProperty('--lvl', v.toFixed(2));
+
+/* ---------- recorder (PCM → WAV) ---------- */
+const recorder = {
+  ctx: null, stopFn: null,
+  async record({ onStart, onLevel }){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      const e = new Error('unsupported'); e.name = 'NotSupportedError'; throw e;
+    }
+    if (!this.ctx){ const AC = window.AudioContext || window.webkitAudioContext; this.ctx = new AC(); }
+    const ctx = this.ctx;
+    ctx.resume && ctx.resume().catch(() => {});
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true, channelCount:1 } });
+    if (ctx.state !== 'running'){ try{ await ctx.resume(); }catch(e){} }
+    const src = ctx.createMediaStreamSource(stream);
+    const proc = ctx.createScriptProcessor(4096, 1, 1);
+    const mute = ctx.createGain(); mute.gain.value = 0;
+    src.connect(proc); proc.connect(mute); mute.connect(ctx.destination);
+
+    const chunks = []; const t0 = performance.now();
+    let speech = false, lastVoice = 0, floorSum = 0, floorN = 0, done = false, gotAudio = false;
+
+    return new Promise(resolve => {
+      const stop = reason => {
+        if (done) return; done = true; this.stopFn = null;
+        clearTimeout(watchdog);
+        try{ proc.disconnect(); src.disconnect(); mute.disconnect(); }catch(e){}
+        stream.getTracks().forEach(t => t.stop());
+        if (reason === 'cancel') return resolve(null);
+        if (reason === 'dead') return resolve({ dead:true });
+        const total = chunks.reduce((a, c) => a + c.length, 0);
+        if (reason === 'silence' || total < ctx.sampleRate * 0.5) return resolve({ empty:true });
+        const merged = new Float32Array(total); let o = 0;
+        for (const c of chunks){ merged.set(c, o); o += c.length; }
+        const { data, rate } = downsample(merged, ctx.sampleRate, 16000);
+        resolve({ wav: encodeWav(data, rate) });
+      };
+      this.stopFn = stop;
+      const watchdog = setTimeout(() => { if (!gotAudio) stop('dead'); }, 2000);
+      proc.onaudioprocess = e => {
+        if (done) return;
+        gotAudio = true;
+        const d = e.inputBuffer.getChannelData(0);
+        chunks.push(new Float32Array(d));
+        let s = 0; for (let i = 0; i < d.length; i++) s += d[i] * d[i];
+        const rms = Math.sqrt(s / d.length), now = performance.now(), el = now - t0;
+        if (el < 300){ floorSum += rms; floorN++; }
+        const floor = floorN ? floorSum / floorN : 0;
+        const thr = Math.max(0.012, Math.min(floor, 0.03) * 2.5);
+        if (el >= 300 && rms > thr){ speech = true; lastVoice = now; }
+        onLevel && onLevel(Math.min(1, rms / 0.12));
+        if (speech && now - lastVoice > 1500) stop('end');
+        else if (!speech && el > 8000) stop('silence');
+        else if (el > 60000) stop('end');
+      };
+      onStart && onStart();
+    });
+  },
+  finish(){ this.stopFn && this.stopFn('end'); },
+  cancel(){ this.stopFn && this.stopFn('cancel'); }
+};
+function downsample(buf, from, to){
+  if (from <= to) return { data: buf, rate: from };
+  const ratio = from / to, len = Math.floor(buf.length / ratio), out = new Float32Array(len);
+  for (let i = 0; i < len; i++){
+    const a = Math.floor(i * ratio), b = Math.min(buf.length, Math.floor((i + 1) * ratio));
+    let sum = 0; for (let j = a; j < b; j++) sum += buf[j];
+    out[i] = b > a ? sum / (b - a) : 0;
+  }
+  return { data: out, rate: to };
+}
+function encodeWav(samples, rate){
+  const buf = new ArrayBuffer(44 + samples.length * 2), v = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + samples.length * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, 'data'); v.setUint32(40, samples.length * 2, true);
+  for (let i = 0, o = 44; i < samples.length; i++, o += 2){
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return new Uint8Array(buf);
+}
+function toBase64(u8){
+  let s = ''; const CH = 0x8000;
+  for (let i = 0; i < u8.length; i += CH) s += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
+  return btoa(s);
+}
+
+/* ---------- speech out ---------- */
+let voices = [];
+const loadVoices = () => { try{ voices = speechSynthesis.getVoices() || []; }catch(e){} };
+if (window.speechSynthesis){ loadVoices(); speechSynthesis.addEventListener && speechSynthesis.addEventListener('voiceschanged', loadVoices); }
+function langOf(text){
+  if (/[іїєґІЇЄҐ]/.test(text)) return 'uk-UA';
+  if (/[а-яё]/i.test(text)) return 'ru-RU';
+  return 'en-US';
+}
+function pickVoice(lang){
+  const base = lang.slice(0, 2);
+  const list = voices.filter(v => (v.lang || '').replace('_', '-').toLowerCase().startsWith(base));
+  return list.find(v => /enhanced|premium|улучш/i.test(v.name)) || list[0] || null;
+}
+function speak(text){
+  return new Promise(res => {
+    if (!settings.tts || !window.speechSynthesis || !text) return res();
+    let lang = langOf(text), voice = pickVoice(lang);
+    if (!voice && lang === 'uk-UA'){ lang = 'ru-RU'; voice = pickVoice(lang); }
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang; if (voice) u.voice = voice; u.rate = 1.05;
+    let finished = false;
+    const end = () => { if (finished) return; finished = true; res(); };
+    u.onend = end; u.onerror = end;
+    setTimeout(end, 2500 + text.length * 90);
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  });
+}
+let unlocked = false;
+function unlockAudio(){
+  if (unlocked || !window.speechSynthesis) return;
+  unlocked = true;
+  try{ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); }catch(e){}
+}
+
+/* ---------- Gemini ---------- */
+const API = 'https://generativelanguage.googleapis.com/v1beta';
+const FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-2.5-flash'];
+
+const SYSTEM = `Ты — голосовой помощник в личном списке задач. Пользователь говорит по-русски или по-украински. Тебе приходит аудиозапись его фразы и контекст в JSON.
+
+Верни JSON:
+- heard: дословно, что сказал пользователь.
+- action: одно из "add", "ask_due", "complete", "none".
+- tasks: список задач {title, due}. title — коротко и по делу, с заглавной буквы, без даты и без слов вроде «мне нужно» (пример: «Позвонить маме»). Язык title — язык пользователя. due — дата "YYYY-MM-DD" или null.
+- complete_ids: id выполненных задач из current_tasks.
+- reply: одна короткая фраза на языке пользователя для озвучивания, без эмодзи и разметки.
+
+Правила:
+1. Новая задача со сроком → "add". Если пользователь прямо сказал, что срока нет («без срока», «когда-нибудь») → "add" с due = null.
+2. Если в контексте pending = null и хотя бы у одной новой задачи срок не назван → "ask_due". В tasks — все новые задачи (где срок назван, due заполнен). reply — короткий вопрос про срок, например: «Когда нужно позвонить маме?».
+3. Если pending не null — пользователь отвечает на вопрос о сроке. Верни "add" с задачами из pending и проставленным due. Если ответ «не знаю», «без срока» или непонятен — due = null. Если вместо ответа он надиктовал новые задачи — "add" и для pending (due = null), и для новых. Повторно про срок не спрашивай.
+4. Пользователь говорит, что сделал задачу, или просит её удалить/убрать → "complete", найди подходящие id в current_tasks по смыслу.
+5. Ничего не понятно или речь не о задачах → "none" с короткой репликой.
+6. Сроки считай от today (указан день недели). «сегодня», «завтра», «послезавтра»; «в пятницу» — ближайшая будущая пятница (если сегодня пятница — сегодня); «на этой неделе», «до конца недели» — ближайшее воскресенье; «на следующей неделе» — воскресенье следующей недели; «через N дней» — today + N; «в конце месяца» — последний день месяца; «в течение месяца» — today + 30; «к N-му числу» — ближайшее такое число. Приблизительные сроки округляй до конкретной даты.
+7. reply для "add": подтверди кратко, срок словами, например «Добавил: позвонить маме, на пятницу». Для "complete": «Отметил: …».`;
+
+const SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    heard: { type: 'STRING' },
+    action: { type: 'STRING' },
+    tasks: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, due: { type: 'STRING', nullable: true } }, required: ['title'] } },
+    complete_ids: { type: 'ARRAY', items: { type: 'STRING' } },
+    reply: { type: 'STRING' }
+  },
+  required: ['heard', 'action', 'reply']
+};
+
+async function apiError(r){
+  let msg = '';
+  try{ const j = await r.json(); msg = (j.error && j.error.message) || ''; }catch(e){}
+  const e = new Error(msg || 'HTTP ' + r.status); e.status = r.status; return e;
+}
+const isKeyError = e => e.status === 403 || (e.status === 400 && /api.?key/i.test(e.message));
+function keyErr(){ const e = new Error('bad key'); e.userMessage = 'Ключ не подошёл. Проверь его в настройках.'; e.key = true; return e; }
+
+async function discoverModels(key){
+  const r = await fetch(`${API}/models?pageSize=1000&key=${encodeURIComponent(key)}`);
+  if (!r.ok) throw await apiError(r);
+  const j = await r.json();
+  const names = (j.models || [])
+    .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+    .map(m => m.name.replace(/^models\//, ''))
+    .filter(n => /^gemini-.*flash/.test(n) && !/(image|tts|live|audio|embed|robotics|computer|thinking|exp|8b)/.test(n));
+  const score = n => {
+    const m = n.match(/^gemini-(\d+(?:\.\d+)?)/);
+    let s = (m ? parseFloat(m[1]) : 0) * 100;
+    if (/lite/.test(n)) s -= 60;
+    if (/preview/.test(n)) s -= 25;
+    if (/-\d{3}$/.test(n)) s -= 5;
+    return s;
+  };
+  return names.sort((a, b) => score(b) - score(a));
+}
+
+async function generate(body){
+  const key = settings.key;
+  let models = LS.get('vt.models', null);
+  if (!models || !models.length){
+    try{ models = await discoverModels(key); LS.set('vt.models', models); }
+    catch(e){ if (isKeyError(e)) throw keyErr(); models = []; }
+  }
+  const cands = [...new Set([settings.model, ...models, ...FALLBACK_MODELS].filter(Boolean))];
+  let last = null, rateLimited = false;
+  for (const m of cands){
+    let r;
+    try{
+      r = await fetch(`${API}/models/${m}:generateContent?key=${encodeURIComponent(key)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+    }catch(e){ const x = new Error('offline'); x.userMessage = 'Нет связи. Проверь интернет.'; throw x; }
+    if (r.ok){
+      if (settings.model !== m){ settings.model = m; saveSettings(); }
+      return r.json();
+    }
+    last = await apiError(r);
+    if (isKeyError(last)) throw keyErr();
+    if (last.status === 404 || /not found|not supported|deprecat/i.test(last.message)){
+      if (settings.model === m){ settings.model = ''; saveSettings(); }
+      continue;
+    }
+    if (last.status === 429){ rateLimited = true; continue; }
+    if (last.status >= 500) continue;
+    throw last;
+  }
+  if (rateLimited){ const e = new Error('quota'); e.userMessage = 'Лимит бесплатных запросов исчерпан. Попробуй чуть позже.'; throw e; }
+  throw last || new Error('Нет доступной модели');
+}
+
+async function askGemini(wav){
+  const t = new Date();
+  const ctx = {
+    today: todayISO(),
+    weekday: fmtWd.format(t),
+    current_tasks: tasks.map(x => ({ id: x.id, title: x.title, due: x.due })),
+    pending: pending,
+    last_question: lastQuestion
+  };
+  const body = {
+    systemInstruction: { parts: [{ text: SYSTEM }] },
+    contents: [{ role: 'user', parts: [
+      { inlineData: { mimeType: 'audio/wav', data: toBase64(wav) } },
+      { text: 'Контекст: ' + JSON.stringify(ctx) }
+    ] }],
+    generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.2 }
+  };
+  const j = await generate(body);
+  const parts = (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [];
+  const text = parts.filter(p => p.text && !p.thought).map(p => p.text).join('');
+  try{ return JSON.parse(text); }
+  catch(e){
+    const m = text.match(/\{[\s\S]*\}/);
+    if (m) return JSON.parse(m[0]);
+    const x = new Error('parse'); x.userMessage = 'Не получилось разобрать ответ. Попробуй ещё раз.'; throw x;
+  }
+}
+
+/* ---------- main flow ---------- */
+async function handle(r){
+  const action = r.action;
+  let reply = (r.reply || '').trim();
+  const list = (r.tasks || [])
+    .filter(t => t && typeof t.title === 'string' && t.title.trim())
+    .map(t => ({ title: t.title.trim(), due: validISO(t.due) ? t.due : null }));
+  const hadPending = !!pending;
+
+  if (action === 'add' && list.length){
+    addTasks(list); pending = null; lastQuestion = null;
+  } else if (action === 'ask_due' && list.length){
+    if (hadPending){ addTasks(list); pending = null; lastQuestion = null; }
+    else { pending = list; lastQuestion = reply; }
+  } else if (action === 'complete'){
+    const ids = r.complete_ids || [];
+    const found = tasks.filter(t => ids.includes(t.id));
+    if (found.length) completeTasks(found, false);
+    else if (!reply) reply = 'Не нашёл такую задачу.';
+    pending = null; lastQuestion = null;
+  }
+
+  showBubble(r.heard, reply);
+  if (!reply){ setPhase('idle'); return; }
+  const token = ++speakToken;
+  setPhase(settings.tts ? 'speaking' : 'idle');
+  await speak(reply);
+  if (token !== speakToken || phase !== (settings.tts ? 'speaking' : 'idle')) return;
+  setPhase('idle');
+  if (pending && settings.autoListen) startListening(true);
+}
+
+function micErrorText(e){
+  if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError'))
+    return 'Нет доступа к микрофону. Разреши его: Настройки → Safari → Микрофон.';
+  if (e && e.name === 'NotSupportedError')
+    return 'Микрофон недоступен. Открой приложение по ссылке https.';
+  return 'Не удалось включить микрофон.';
+}
+
+async function startListening(auto){
+  let audio;
+  try{
+    audio = await recorder.record({ onStart: () => setPhase('listening'), onLevel: setLevel });
+  }catch(e){
+    setPhase('idle');
+    if (!auto) showBubble(null, micErrorText(e));
+    return;
+  }
+  if (!audio){ setPhase('idle'); return; }
+  if (audio.dead){ setPhase('idle'); if (!auto) showBubble(null, 'Микрофон не отвечает. Нажми ещё раз.'); return; }
+  if (audio.empty){
+    setPhase('idle');
+    showBubble(null, pending ? (lastQuestion || 'Когда нужно сделать?') : 'Ничего не расслышал. Попробуй ещё раз.');
+    return;
+  }
+  setPhase('thinking');
+  try{
+    const r = await askGemini(audio.wav);
+    await handle(r);
+  }catch(e){
+    setPhase('idle');
+    showBubble(null, e.userMessage || ('Ошибка: ' + e.message));
+    if (e.key) openSettings();
+  }
+}
+
+$('#mic').addEventListener('click', () => {
+  unlockAudio();
+  if (phase === 'listening'){ recorder.finish(); return; }
+  if (phase === 'speaking'){ speakToken++; window.speechSynthesis && speechSynthesis.cancel(); setPhase('idle'); return; }
+  if (phase === 'thinking') return;
+  if (!settings.key){ openSettings(); return; }
+  hideToast();
+  startListening(false);
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden){
+    recorder.cancel(); speakToken++;
+    window.speechSynthesis && speechSynthesis.cancel();
+    if (phase !== 'thinking') setPhase('idle');
+  } else render();
+});
+
+/* ---------- settings ---------- */
+function openSettings(){
+  $('#keyInput').value = settings.key;
+  $('#ttsToggle').checked = settings.tts;
+  $('#alToggle').checked = settings.autoListen;
+  $('#checkRes').textContent = '';
+  $('#modelLine').textContent = settings.model ? 'Модель: ' + settings.model : '';
+  $('#sheet').classList.add('open');
+  if (!settings.key) setTimeout(() => $('#keyInput').focus(), 320);
+}
+function closeSettings(){ $('#keyInput').blur(); $('#sheet').classList.remove('open'); }
+$('#gear').addEventListener('click', openSettings);
+$('#scrim').addEventListener('click', closeSettings);
+$('#saveBtn').addEventListener('click', () => {
+  const key = $('#keyInput').value.trim();
+  if (key !== settings.key){ settings.key = key; settings.model = ''; LS.set('vt.models', null); }
+  settings.tts = $('#ttsToggle').checked;
+  settings.autoListen = $('#alToggle').checked;
+  saveSettings(); closeSettings(); setPhase(phase);
+});
+$('#checkBtn').addEventListener('click', async () => {
+  const key = $('#keyInput').value.trim();
+  const res = $('#checkRes');
+  if (!key){ res.textContent = 'Сначала вставь ключ'; return; }
+  res.textContent = 'Проверяю…';
+  try{
+    const models = await discoverModels(key);
+    LS.set('vt.models', models);
+    res.textContent = models.length ? 'Ключ работает ✓' : 'Ключ работает, но подходящей модели не нашлось';
+    $('#modelLine').textContent = models.length ? 'Модель: ' + models[0] : '';
+  }catch(e){
+    res.textContent = isKeyError(e) ? 'Ключ не подошёл' : (e.status ? 'Ошибка: ' + e.message : 'Нет связи');
+  }
+});
+
+/* ---------- home screen icon ---------- */
+(function makeIcon(){
+  try{
+    const c = document.createElement('canvas'); c.width = c.height = 180;
+    const g = c.getContext('2d');
+    g.fillStyle = '#FF5B37'; g.fillRect(0, 0, 180, 180);
+    g.strokeStyle = '#fff'; g.fillStyle = '#fff'; g.lineWidth = 11; g.lineCap = 'round';
+    const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+    rr(68, 34, 44, 74, 22); g.fill();
+    g.beginPath(); g.arc(90, 84, 42, 0.12 * Math.PI, 0.88 * Math.PI); g.stroke();
+    g.beginPath(); g.moveTo(90, 128); g.lineTo(90, 148); g.stroke();
+    const l = document.createElement('link'); l.rel = 'apple-touch-icon'; l.href = c.toDataURL('image/png');
+    document.head.appendChild(l);
+  }catch(e){}
+})();
+
+render();
+setPhase('idle');
+if (!settings.key) setTimeout(openSettings, 400);
+</script>
+</body>
+</html>
