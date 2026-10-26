@@ -11,6 +11,7 @@
 <meta name="theme-color" content="#0E0E0F" media="(prefers-color-scheme: dark)">
 <meta name="format-detection" content="telephone=no">
 <title>Задачи</title>
+<link rel="preconnect" href="https://generativelanguage.googleapis.com">
 <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2">
 <style>
 :root{
@@ -212,6 +213,7 @@ const LS = {
 };
 const settings = Object.assign({ key:'', model:'', tts:true, autoListen:true }, LS.get('vt.settings', {}));
 const saveSettings = () => LS.set('vt.settings', settings);
+if ((settings.v || 0) < 2){ settings.model = ''; settings.v = 2; LS.set('vt.models', null); saveSettings(); }
 let tasks = LS.get('vt.tasks', []);
 const saveTasks = () => LS.set('vt.tasks', tasks);
 
@@ -377,64 +379,138 @@ function setLevel(v, reset){
 }
 
 /* ---------- recorder (PCM → WAV) ---------- */
+/* Микрофон держим открытым, пока приложение на экране: повторные записи стартуют
+   мгновенно и iOS не переспрашивает разрешение. Закрываем через 3 минуты простоя. */
+const mic = {
+  stream: null, ctx: null, src: null, analyser: null, idleTimer: null,
+  prime(){                       // вызывается прямо в обработчике нажатия
+    try{
+      if (!this.ctx){ const AC = window.AudioContext || window.webkitAudioContext; if (AC) this.ctx = new AC(); }
+      if (this.ctx && this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
+    }catch(e){}
+  },
+  live(){ return !!(this.stream && this.stream.getAudioTracks().some(t => t.readyState === 'live')); },
+  async ensure(){
+    clearTimeout(this.idleTimer);
+    if (this.live()) return this.stream;
+    this.dropAnalyser();
+    this.stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true, channelCount:1 } });
+    return this.stream;
+  },
+  analyserFor(){
+    try{
+      if (!this.ctx || this.ctx.state !== 'running') return null;
+      if (!this.analyser){
+        this.src = this.ctx.createMediaStreamSource(this.stream);
+        this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 1024;
+        this.src.connect(this.analyser);
+      }
+      return this.analyser;
+    }catch(e){ return null; }
+  },
+  dropAnalyser(){ try{ this.src && this.src.disconnect(); }catch(e){} this.src = null; this.analyser = null; },
+  idle(){ clearTimeout(this.idleTimer); this.idleTimer = setTimeout(() => this.release(), 180000); },
+  release(){
+    clearTimeout(this.idleTimer); this.dropAnalyser();
+    if (this.stream) this.stream.getTracks().forEach(t => t.stop());
+    this.stream = null;
+  }
+};
+
 const recorder = {
-  ctx: null, stopFn: null,
+  stopFn: null,
   async record({ onStart, onLevel }){
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){
       const e = new Error('unsupported'); e.name = 'NotSupportedError'; throw e;
     }
-    if (!this.ctx){ const AC = window.AudioContext || window.webkitAudioContext; this.ctx = new AC(); }
-    const ctx = this.ctx;
-    ctx.resume && ctx.resume().catch(() => {});
-    const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true, channelCount:1 } });
-    if (ctx.state !== 'running'){ try{ await ctx.resume(); }catch(e){} }
-    const src = ctx.createMediaStreamSource(stream);
-    const proc = ctx.createScriptProcessor(4096, 1, 1);
-    const mute = ctx.createGain(); mute.gain.value = 0;
-    src.connect(proc); proc.connect(mute); mute.connect(ctx.destination);
-
-    const chunks = []; const t0 = performance.now();
-    let speech = false, lastVoice = 0, floorSum = 0, floorN = 0, done = false, gotAudio = false;
+    const stream = await mic.ensure();
+    const type = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm']
+      .find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || '';
+    const mr = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+    const chunks = [];
+    mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    const an = mic.analyserFor();
+    const buf = an ? new Float32Array(an.fftSize) : null;
 
     return new Promise(resolve => {
-      const stop = reason => {
+      const t0 = performance.now();
+      let done = false, speech = false, lastVoice = 0, floorSum = 0, floorN = 0, signal = false;
+      const finish = reason => {
         if (done) return; done = true; this.stopFn = null;
-        clearTimeout(watchdog);
-        try{ proc.disconnect(); src.disconnect(); mute.disconnect(); }catch(e){}
-        stream.getTracks().forEach(t => t.stop());
-        if (reason === 'cancel') return resolve(null);
-        if (reason === 'dead') return resolve({ dead:true });
-        const total = chunks.reduce((a, c) => a + c.length, 0);
-        if (reason === 'silence' || total < ctx.sampleRate * 0.5) return resolve({ empty:true });
-        const merged = new Float32Array(total); let o = 0;
-        for (const c of chunks){ merged.set(c, o); o += c.length; }
-        const { data, rate } = downsample(merged, ctx.sampleRate, 16000);
-        resolve({ wav: encodeWav(data, rate) });
+        clearInterval(iv); onLevel && onLevel(0);
+        mr.onstop = async () => {
+          mic.idle();
+          if (reason === 'cancel') return resolve(null);
+          if (reason === 'silence') return resolve({ empty: true });
+          const blob = new Blob(chunks, { type: mr.mimeType || type || 'audio/mp4' });
+          if (blob.size < 800) return resolve({ empty: true });
+          const recMs = Math.round(performance.now() - t0);
+          try{
+            const wav = await toWav16k(blob);
+            resolve(wav ? { data: wav, mime: 'audio/wav', recMs } : { empty: true });
+          }catch(e){
+            // Не смогли перекодировать: отправляем запись как есть.
+            resolve({ data: new Uint8Array(await blob.arrayBuffer()), mime: (blob.type || 'audio/mp4').split(';')[0], recMs });
+          }
+        };
+        try{ if (mr.state !== 'inactive') mr.stop(); else mr.onstop(); }catch(e){ mr.onstop(); }
       };
-      this.stopFn = stop;
-      const watchdog = setTimeout(() => { if (!gotAudio) stop('dead'); }, 2000);
-      proc.onaudioprocess = e => {
-        if (done) return;
-        gotAudio = true;
-        const d = e.inputBuffer.getChannelData(0);
-        chunks.push(new Float32Array(d));
-        let s = 0; for (let i = 0; i < d.length; i++) s += d[i] * d[i];
-        const rms = Math.sqrt(s / d.length), now = performance.now(), el = now - t0;
-        if (el < 200){ floorSum += rms; floorN++; }
+      this.stopFn = finish;
+      mr.onerror = () => { mic.release(); finish('end'); };
+
+      // Громкость и автостоп по тишине, если Web Audio доступен. Без него запись всё равно идёт,
+      // а остановить её можно нажатием.
+      const iv = setInterval(() => {
+        const now = performance.now(), el = now - t0;
+        if (el > 30000) return finish('end');
+        if (!an) return;
+        an.getFloatTimeDomainData(buf);
+        let sum = 0; for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+        const rms = Math.sqrt(sum / buf.length);
+        if (rms > 0) signal = true;
+        if (!signal) return;
+        if (el < 200){ floorSum += rms; floorN++; return; }
         const floor = floorN ? floorSum / floorN : 0;
         const thr = Math.max(0.012, Math.min(floor, 0.03) * 2.5);
-        if (el >= 200 && rms > thr){ speech = true; lastVoice = now; }
+        if (rms > thr){ speech = true; lastVoice = now; }
         onLevel && onLevel(Math.min(1, rms / 0.12));
-        if (speech && now - lastVoice > 900) stop('end');
-        else if (!speech && el > 8000) stop('silence');
-        else if (el > 60000) stop('end');
-      };
+        if (speech && now - lastVoice > 850) finish('end');
+        else if (!speech && el > 7000) finish('silence');
+      }, 50);
+
+      try{ mr.start(); }catch(e){ clearInterval(iv); this.stopFn = null; mic.release(); throw e; }
       onStart && onStart();
     });
   },
   finish(){ this.stopFn && this.stopFn('end'); },
   cancel(){ this.stopFn && this.stopFn('cancel'); }
 };
+
+async function toWav16k(blob){
+  const ab = await blob.arrayBuffer();
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const oc = new OAC(1, 16000, 16000);
+  const audio = await new Promise((res, rej) => { const p = oc.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej); });
+  let { data, rate } = downsample(audio.getChannelData(0), audio.sampleRate, 16000);
+  data = trimSilence(data, rate);
+  if (data.length < rate * 0.25) return null;
+  return encodeWav(data, rate);
+}
+// Обрезаем тишину по краям: меньше аудио — быстрее ответ.
+function trimSilence(d, rate){
+  const fr = Math.round(rate * 0.02), n = Math.floor(d.length / fr);
+  if (n < 5) return d;
+  const e = new Float32Array(n);
+  for (let i = 0; i < n; i++){ let s = 0; for (let j = i * fr; j < (i + 1) * fr; j++) s += d[j] * d[j]; e[i] = Math.sqrt(s / fr); }
+  const sorted = Array.from(e).sort((a, b) => a - b);
+  const thr = Math.max(0.006, sorted[Math.floor(n * 0.2)] * 3);
+  let a = 0, b = n - 1;
+  while (a < n && e[a] < thr) a++;
+  while (b > a && e[b] < thr) b--;
+  if (a >= b) return d;
+  const start = Math.max(0, (a - 8) * fr), end = Math.min(d.length, (b + 13) * fr);
+  return d.subarray(start, end);
+}
 function downsample(buf, from, to){
   if (from <= to) return { data: buf, rate: from };
   const ratio = from / to, len = Math.floor(buf.length / ratio), out = new Float32Array(len);
@@ -581,18 +657,20 @@ async function callModel(m, key, body, timeoutMs){
 
 async function generate(body, opts = {}){
   const key = opts.key || settings.key;
-  const timeoutMs = opts.timeout || 25000;
+  const timeoutMs = opts.timeout || 12000;
   let models = LS.get('vt.models', null);
   if (!models || !models.length){
     try{ models = await discoverModels(key); LS.set('vt.models', models); }
     catch(e){ if (isKeyError(e)) throw keyErr(); models = []; }
   }
-  const cands = [...new Set([settings.model, ...models, ...FALLBACK_MODELS].filter(Boolean))].slice(0, 4);
+  const all = [...new Set([settings.model, ...models, ...FALLBACK_MODELS].filter(Boolean))];
+  const cands = [...all.filter(m => /lite/.test(m)), ...all.filter(m => !/lite/.test(m))].slice(0, 4);
+  const thinkCache = LS.get('vt.think', {});
   const log = [];
   let rateLimited = false, last = null;
   for (const m of cands){
     const steps = thinkingSteps(m);
-    for (let si = 0; si < steps.length; si++){
+    for (let si = Math.min(thinkCache[m] || 0, steps.length - 1); si < steps.length; si++){
       const think = steps[si];
       const b = JSON.parse(JSON.stringify(body));
       if (think) b.generationConfig = Object.assign({}, b.generationConfig, { thinkingConfig: think });
@@ -606,6 +684,7 @@ async function generate(body, opts = {}){
       }
       if (r.ok){
         if (settings.model !== m){ settings.model = m; saveSettings(); }
+        if ((thinkCache[m] || 0) !== si){ thinkCache[m] = si; LS.set('vt.think', thinkCache); }
         const j = await r.json();
         j._model = m; j._ms = Math.round(performance.now() - t0);
         return j;
@@ -626,7 +705,7 @@ async function generate(body, opts = {}){
   throw e;
 }
 
-async function askGemini(wav){
+async function askGemini(audio){
   const t = new Date();
   const ctx = {
     today: todayISO(),
@@ -638,12 +717,13 @@ async function askGemini(wav){
   const body = {
     systemInstruction: { parts: [{ text: SYSTEM }] },
     contents: [{ role: 'user', parts: [
-      { inlineData: { mimeType: 'audio/wav', data: toBase64(wav) } },
+      { inlineData: { mimeType: audio.mime, data: toBase64(audio.data) } },
       { text: 'Контекст: ' + JSON.stringify(ctx) }
     ] }],
     generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.2 }
   };
   const j = await generate(body);
+  LS.set('vt.timing', { rec: audio.recMs || 0, ai: j._ms, model: j._model, kb: Math.round(audio.data.length / 1024) });
   const parts = (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [];
   const text = parts.filter(p => p.text && !p.thought).map(p => p.text).join('');
   try{ return JSON.parse(text); }
@@ -719,12 +799,11 @@ async function startListening(auto){
   try{
     audio = await recorder.record({ onStart: () => setPhase('listening'), onLevel: setLevel });
   }catch(e){
-    setPhase('idle');
+    setPhase('idle'); mic.release();
     if (!auto) showBubble(null, micErrorText(e));
     return;
   }
   if (!audio){ setPhase('idle'); return; }
-  if (audio.dead){ setPhase('idle'); if (!auto) showBubble(null, 'Микрофон не отвечает. Нажми ещё раз.'); return; }
   if (audio.empty){
     setPhase('idle');
     showBubble(null, pending ? (lastQuestion || 'Когда нужно сделать?') : 'Не расслышал. Попробуй ещё раз.');
@@ -732,7 +811,7 @@ async function startListening(auto){
   }
   setPhase('thinking');
   try{
-    const r = await askGemini(audio.wav);
+    const r = await askGemini(audio);
     await handle(r);
   }catch(e){
     setPhase('idle');
@@ -741,8 +820,15 @@ async function startListening(auto){
   }
 }
 
+// Прогреваем соединение с Gemini, чтобы первый запрос не ждал рукопожатия.
+function warmUp(){
+  if (!settings.key || !navigator.onLine) return;
+  fetch(`${API}/models?pageSize=1&key=${encodeURIComponent(settings.key)}`).catch(() => {});
+}
+
 $('#mic').addEventListener('click', () => {
   unlockAudio();
+  mic.prime();
   if (phase === 'listening'){ recorder.finish(); return; }
   if (phase === 'speaking'){ speakToken++; window.speechSynthesis && speechSynthesis.cancel(); setPhase('idle'); return; }
   if (phase === 'thinking') return;
@@ -753,10 +839,10 @@ $('#mic').addEventListener('click', () => {
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden){
-    recorder.cancel(); speakToken++;
+    recorder.cancel(); mic.release(); speakToken++;
     window.speechSynthesis && speechSynthesis.cancel();
     if (phase !== 'thinking') setPhase('idle');
-  } else render();
+  } else { render(); warmUp(); }
 });
 
 /* ---------- settings ---------- */
@@ -765,7 +851,9 @@ function openSettings(){
   $('#ttsToggle').checked = settings.tts;
   $('#alToggle').checked = settings.autoListen;
   $('#checkRes').textContent = '';
-  $('#modelLine').textContent = settings.model ? 'Модель: ' + settings.model : '';
+  const tm = LS.get('vt.timing', null);
+  $('#modelLine').textContent = (settings.model ? 'Модель: ' + settings.model : '') +
+    (tm ? `\nПоследний запрос: запись ${(tm.rec / 1000).toFixed(1)} с · ответ Gemini ${(tm.ai / 1000).toFixed(1)} с · ${tm.kb} КБ` : '');
   $('#sheet').classList.add('open');
   if (!settings.key) setTimeout(() => $('#keyInput').focus(), 320);
 }
@@ -789,7 +877,7 @@ $('#checkBtn').addEventListener('click', async () => {
     LS.set('vt.models', models);
     if (key !== settings.key){ settings.model = ''; }
     res.textContent = 'Ключ работает. Пробую модель…';
-    const j = await generate({ contents: [{ role: 'user', parts: [{ text: 'Ответь одним словом: ок' }] }] }, { key, timeout: 20000 });
+    const j = await generate({ contents: [{ role: 'user', parts: [{ text: 'Ответь одним словом: ок' }] }] }, { key, timeout: 15000 });
     res.textContent = `Всё работает ✓ (${(j._ms / 1000).toFixed(1)} с)`;
     $('#modelLine').textContent = 'Модель: ' + j._model;
   }catch(e){
@@ -802,6 +890,7 @@ $('#checkBtn').addEventListener('click', async () => {
 /* ---------- home screen icon ---------- */
 render();
 setPhase('idle');
+warmUp();
 if (!settings.key) setTimeout(openSettings, 400);
 </script>
 </body>
