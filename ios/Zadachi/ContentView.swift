@@ -33,7 +33,7 @@ struct ContentView: View {
                 }
             }
             .navigationTitle(store.title)
-            .toolbarTitleDisplayMode(.inlineLarge)   // крупный заголовок на одной линии с шестерёнкой
+            .navigationBarTitleDisplayMode(.inline)   // маленький заголовок сразу: главное на экране — задачи
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

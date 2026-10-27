@@ -105,6 +105,10 @@ enum Dates {
 
     static func today() -> String { iso.string(from: Date()) }
     static func todayWeekday() -> String { weekday.string(from: Date()) }
+    static func nowTime() -> String {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: Date())
+        return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
+    }
     static func date(_ s: String) -> Date? { iso.date(from: s) }
 
     /// Принимает только корректную дату "yyyy-MM-dd".

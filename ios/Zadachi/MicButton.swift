@@ -1,46 +1,32 @@
 import SwiftUI
 import UIKit
 
+/// Стеклянная кнопка микрофона. Во время записи и обработки под стеклом
+/// движется размытый синий свет — он виден сквозь стекло и чуть выходит за его край.
 struct MicButton: View {
     let phase: Phase
     let level: Float
     let action: () -> Void
 
     private let size: CGFloat = 76
-    static let gradient = LinearGradient(
-        colors: [
-            Color(red: 0.18, green: 0.42, blue: 1.0),
-            Color(red: 0.12, green: 0.64, blue: 1.0),
-            Color(red: 0.42, green: 0.36, blue: 1.0)
-        ],
-        startPoint: .topLeading, endPoint: .bottomTrailing
-    )
 
-    private var active: Bool { phase == .listening || phase == .speaking }
+    static let blue = Color(red: 0.18, green: 0.42, blue: 1.0)
+    static let cyan = Color(red: 0.12, green: 0.64, blue: 1.0)
+    static let violet = Color(red: 0.42, green: 0.36, blue: 1.0)
+
+    private var active: Bool { phase != .idle }
 
     var body: some View {
         Button(action: action) {
             ZStack {
-                if active {
-                    Ripple(size: size, period: phase == .listening ? 1.8 : 2.6)
-                }
-                if phase == .listening {
-                    Circle()
-                        .fill(Color.blue.opacity(0.18))
-                        .frame(width: size + 14, height: size + 14)
-                        .scaleEffect(1 + CGFloat(level) * 0.32)
-                        .animation(.linear(duration: 0.1), value: level)
-                }
-                if phase == .thinking {
-                    Spinner(size: size + 14)
-                }
-                Circle()
-                    .fill(active ? AnyShapeStyle(Self.gradient) : AnyShapeStyle(Color.primary))
-                    .frame(width: size, height: size)
-                    .shadow(color: active ? Color.blue.opacity(0.4) : .clear, radius: 14, y: 6)
-                Image(systemName: active ? "stop.fill" : "mic.fill")
+                Glow(phase: phase, level: level, size: size)
+                    .opacity(active ? 1 : 0)
+
+                GlassDisc(size: size)
+
+                Image(systemName: phase == .listening || phase == .speaking ? "stop.fill" : "mic.fill")
                     .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(active ? Color.white : Color(.systemBackground))
+                    .foregroundStyle(active ? Self.blue : Color.primary)
                     .contentTransition(.symbolEffect(.replace))
             }
             .frame(width: size * 1.6, height: size * 1.6)
@@ -52,50 +38,80 @@ struct MicButton: View {
     }
 }
 
-/// Две волны, расходящиеся от кнопки.
-private struct Ripple: View {
+/// Сам стеклянный круг: Liquid Glass на iOS 26+, на старых системах — системный материал.
+private struct GlassDisc: View {
     let size: CGFloat
-    let period: Double
 
     var body: some View {
-        TimelineView(.animation) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            ZStack {
-                ForEach(0..<2, id: \.self) { i in
-                    let p = (t / period + Double(i) * 0.5).truncatingRemainder(dividingBy: 1)
-                    Circle()
-                        .fill(MicButton.gradient)
-                        .frame(width: size, height: size)
-                        .scaleEffect(1 + 0.55 * p)
-                        .opacity(0.35 * (1 - p))
-                }
-            }
+        if #available(iOS 26.0, *) {
+            Circle()
+                .fill(Color.clear)
+                .frame(width: size, height: size)
+                .glassEffect(.regular.interactive(), in: Circle())
+        } else {
+            Circle()
+                .fill(.ultraThinMaterial)
+                .frame(width: size, height: size)
+                .overlay(Circle().strokeBorder(Color.white.opacity(0.25), lineWidth: 0.5))
+                .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
         }
-        .allowsHitTesting(false)
     }
 }
 
-/// Градиентное кольцо, пока Gemini думает.
-private struct Spinner: View {
+/// Размытый свет под стеклом.
+/// Запись — свет по всему кругу, медленно вращается и «дышит» в такт голосу.
+/// Обработка — яркая дуга бежит по кругу, как индикатор загрузки.
+/// Вопрос голосом — спокойная пульсация.
+private struct Glow: View {
+    let phase: Phase
+    let level: Float
     let size: CGFloat
 
     var body: some View {
         TimelineView(.animation) { context in
             let t = context.date.timeIntervalSinceReferenceDate
-            let angle = (t / 0.9).truncatingRemainder(dividingBy: 1) * 360
-            Circle()
-                .trim(from: 0, to: 0.72)
-                .stroke(
-                    AngularGradient(
-                        colors: [Color.blue.opacity(0), Color(red: 0.18, green: 0.42, blue: 1.0), Color(red: 0.12, green: 0.64, blue: 1.0), Color(red: 0.42, green: 0.36, blue: 1.0)],
-                        center: .center, startAngle: .degrees(0), endAngle: .degrees(260)
-                    ),
-                    style: StrokeStyle(lineWidth: 3.5, lineCap: .round)
-                )
-                .frame(width: size, height: size)
-                .rotationEffect(.degrees(angle))
+            let lvl = CGFloat(level)
+
+            ZStack {
+                switch phase {
+                case .thinking:
+                    arc(trim: 0.62)
+                        .rotationEffect(.degrees((t / 1.0).truncatingRemainder(dividingBy: 1) * 360))
+                case .listening:
+                    arc(trim: 1)
+                        .rotationEffect(.degrees((t / 4).truncatingRemainder(dividingBy: 1) * 360))
+                        .scaleEffect(1 + lvl * 0.18)
+                case .speaking:
+                    arc(trim: 1)
+                        .rotationEffect(.degrees((t / 6).truncatingRemainder(dividingBy: 1) * 360))
+                        .scaleEffect(1 + 0.06 * CGFloat(sin(t * 3)))
+                case .idle:
+                    EmptyView()
+                }
+            }
+            .animation(.linear(duration: 0.1), value: level)
         }
         .allowsHitTesting(false)
+    }
+
+    /// Широкое кольцо, размытое в мягкое свечение.
+    private func arc(trim: CGFloat) -> some View {
+        Circle()
+            .trim(from: 0, to: trim)
+            .stroke(
+                AngularGradient(
+                    colors: trim < 1
+                        ? [MicButton.blue.opacity(0), MicButton.blue, MicButton.cyan, MicButton.violet]
+                        : [MicButton.blue, MicButton.cyan, MicButton.violet, MicButton.blue],
+                    center: .center,
+                    startAngle: .degrees(0),
+                    endAngle: .degrees(360 * Double(trim))
+                ),
+                style: StrokeStyle(lineWidth: 14, lineCap: .round)
+            )
+            .frame(width: size - 6, height: size - 6)
+            .blur(radius: 9)
+            .opacity(0.9)
     }
 }
 

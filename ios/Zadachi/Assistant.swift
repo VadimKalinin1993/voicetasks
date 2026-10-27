@@ -237,6 +237,7 @@ final class Assistant {
         var ctx: [String: Any] = [
             "today": Dates.today(),
             "weekday": Dates.todayWeekday(),
+            "now": Dates.nowTime(),
             "current_tasks": current
         ]
         if let pending {
