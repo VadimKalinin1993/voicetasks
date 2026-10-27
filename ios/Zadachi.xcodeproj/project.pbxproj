@@ -6,8 +6,19 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		D1A000000000000000000020 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D1A000000000000000000009 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D1A000000000000000000006;
+			remoteInfo = Zadachi;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		D1A000000000000000000001 /* Zadachi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Zadachi.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D1A000000000000000000021 /* ZadachiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ZadachiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,9 +27,21 @@
 			path = Zadachi;
 			sourceTree = "<group>";
 		};
+		D1A000000000000000000022 /* ZadachiTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ZadachiTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		D1A000000000000000000023 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D1A000000000000000000003 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -33,6 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				D1A000000000000000000002 /* Zadachi */,
+				D1A000000000000000000022 /* ZadachiTests */,
 				D1A000000000000000000005 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				D1A000000000000000000001 /* Zadachi.app */,
+				D1A000000000000000000021 /* ZadachiTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -70,6 +95,29 @@
 			productReference = D1A000000000000000000001 /* Zadachi.app */;
 			productType = "com.apple.product-type.application";
 		};
+		D1A000000000000000000024 /* ZadachiTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D1A00000000000000000002A /* Build configuration list for PBXNativeTarget "ZadachiTests" */;
+			buildPhases = (
+				D1A000000000000000000025 /* Sources */,
+				D1A000000000000000000023 /* Frameworks */,
+				D1A000000000000000000026 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D1A000000000000000000027 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				D1A000000000000000000022 /* ZadachiTests */,
+			);
+			name = ZadachiTests;
+			packageProductDependencies = (
+			);
+			productName = ZadachiTests;
+			productReference = D1A000000000000000000021 /* ZadachiTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -82,6 +130,10 @@
 				TargetAttributes = {
 					D1A000000000000000000006 = {
 						CreatedOnToolsVersion = 26.0;
+					};
+					D1A000000000000000000024 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = D1A000000000000000000006;
 					};
 				};
 			};
@@ -101,11 +153,19 @@
 			projectRoot = "";
 			targets = (
 				D1A000000000000000000006 /* Zadachi */,
+				D1A000000000000000000024 /* ZadachiTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		D1A000000000000000000026 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D1A000000000000000000008 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -116,6 +176,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		D1A000000000000000000025 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D1A000000000000000000007 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -124,6 +191,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D1A000000000000000000027 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D1A000000000000000000006 /* Zadachi */;
+			targetProxy = D1A000000000000000000020 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		D1A00000000000000000000C /* Debug */ = {
@@ -249,9 +324,60 @@
 			};
 			name = Release;
 		};
+		D1A000000000000000000028 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vadym.zadachi.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Zadachi.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Zadachi";
+			};
+			name = Debug;
+		};
+		D1A000000000000000000029 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vadym.zadachi.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Zadachi.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Zadachi";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		D1A00000000000000000002A /* Build configuration list for PBXNativeTarget "ZadachiTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D1A000000000000000000028 /* Debug */,
+				D1A000000000000000000029 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		D1A00000000000000000000A /* Build configuration list for PBXNativeTarget "Zadachi" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

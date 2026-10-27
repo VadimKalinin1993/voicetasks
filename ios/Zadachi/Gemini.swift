@@ -2,29 +2,92 @@ import Foundation
 
 // MARK: - Ответ модели
 
+/// Ответ модели. Читается мягко: одно кривое поле (число вместо строки, строка "true"
+/// вместо true, правка без id) не ломает весь ответ — пропускается только оно.
 struct AssistantReply: Decodable {
     struct NewItem: Decodable {
         var title: String?
         var due: String?
         var priority: String?
+
+        init(title: String?, due: String?, priority: String?) {
+            self.title = title; self.due = due; self.priority = priority
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: Key.self)
+            title = c.loose("title")
+            due = c.loose("due")
+            priority = c.loose("priority")
+        }
     }
     struct Change: Decodable {
-        var id: String
+        var id: String?
         var priority: String?
         var due: String?
         var clear_due: Bool?
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: Key.self)
+            id = c.loose("id")
+            priority = c.loose("priority")
+            due = c.loose("due")
+            clear_due = c.looseBool("clear_due")
+        }
     }
     var heard: String?
     var action: String?
     var tasks: [NewItem]?
     var updates: [Change]?
-    var complete_ids: [String]?
     var reply: String?
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: Key.self)
+        heard = c.loose("heard")
+        action = c.loose("action")
+        reply = c.loose("reply")
+        tasks = (try? c.decodeIfPresent([Lossy<NewItem>].self, forKey: Key("tasks")))?.compactMap(\.value)
+        updates = (try? c.decodeIfPresent([Lossy<Change>].self, forKey: Key("updates")))?.compactMap(\.value)
+    }
+
+    struct Key: CodingKey {
+        var stringValue: String
+        var intValue: Int? { nil }
+        init(_ s: String) { stringValue = s }
+        init?(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { nil }
+    }
+}
+
+extension KeyedDecodingContainer where K == AssistantReply.Key {
+    /// Строка, даже если модель прислала число или true/false; null и мусор — nil.
+    func loose(_ key: String) -> String? {
+        let k = K(key)
+        if let v = try? decodeIfPresent(String.self, forKey: k) { return v }
+        if let v = try? decodeIfPresent(Int.self, forKey: k) { return String(v) }
+        if let v = try? decodeIfPresent(Double.self, forKey: k) { return String(v) }
+        if let v = try? decodeIfPresent(Bool.self, forKey: k) { return String(v) }
+        return nil
+    }
+
+    func looseBool(_ key: String) -> Bool? {
+        let k = K(key)
+        if let v = try? decodeIfPresent(Bool.self, forKey: k) { return v }
+        switch loose(key)?.lowercased() {
+        case "true", "1", "yes": return true
+        case "false", "0", "no": return false
+        default: return nil
+        }
+    }
 }
 
 struct GeminiError: Error {
     var message: String
     var isKey = false
+    /// Ответа нет (сеть, таймаут, лимит, ключ) — фразу стоит отправить ещё раз позже.
+    var retry = false
+
+    var canRetry: Bool { retry || isKey }
 }
 
 // MARK: - Клиент
@@ -48,12 +111,24 @@ final class Gemini {
     func resetModels() {
         defaults.removeObject(forKey: "models")
         defaults.removeObject(forKey: "model")
+        defaults.removeObject(forKey: "modelsAt")
     }
 
-    /// Заранее устанавливаем соединение, чтобы первый запрос не ждал рукопожатия.
+    /// Заранее устанавливаем соединение, чтобы запрос не ждал рукопожатия.
+    /// Раз в неделю заодно обновляем список моделей — так подхватываются новые модели Google.
     func warmUp() {
         let key = self.key
-        guard !key.isEmpty, let url = URL(string: "\(Self.api)/models?pageSize=1") else { return }
+        guard !key.isEmpty else { return }
+        let checked = defaults.object(forKey: "modelsAt") as? Date ?? .distantPast
+        if Date().timeIntervalSince(checked) > 7 * 86_400 {
+            Task {
+                guard let models = try? await discoverModels(key: key), !models.isEmpty else { return }
+                defaults.set(models, forKey: "models")
+                defaults.set(Date(), forKey: "modelsAt")
+            }
+            return
+        }
+        guard let url = URL(string: "\(Self.api)/models?pageSize=1") else { return }
         var req = URLRequest(url: url)
         req.setValue(key, forHTTPHeaderField: "x-goog-api-key")
         let session = self.session
@@ -77,8 +152,7 @@ final class Gemini {
         let body: [String: Any] = ["systemInstruction": system, "contents": [content], "generationConfig": config]
 
         let result = try await generate(body)
-        guard let data = Self.extractJSON(result.text),
-              let reply = try? JSONDecoder().decode(AssistantReply.self, from: data) else {
+        guard let reply = Self.parse(result.text) else {
             throw GeminiError(message: "Не получилось разобрать ответ. Попробуй ещё раз.")
         }
         return (reply, result.model, result.ms)
@@ -89,6 +163,7 @@ final class Gemini {
         resetModels()
         let models = try await discoverModels(key: key)
         defaults.set(models, forKey: "models")
+        defaults.set(Date(), forKey: "modelsAt")
         let part: [String: Any] = ["text": "Ответь одним словом: ок"]
         let content: [String: Any] = ["role": "user", "parts": [part]]
         let r = try await generate(["contents": [content]])
@@ -106,6 +181,7 @@ final class Gemini {
             do {
                 models = try await discoverModels(key: key)
                 defaults.set(models, forKey: "models")
+                defaults.set(Date(), forKey: "modelsAt")
             } catch let e as GeminiError where e.isKey {
                 throw e
             } catch {
@@ -113,9 +189,7 @@ final class Gemini {
             }
         }
 
-        var all: [String] = []
-        for m in [lastModel] + models + Self.fallbackModels where !m.isEmpty && !all.contains(m) { all.append(m) }
-        let candidates = Array((all.filter { $0.contains("lite") } + all.filter { !$0.contains("lite") }).prefix(4))
+        let candidates = Self.candidates(last: lastModel, discovered: models)
 
         var thinkCache = defaults.dictionary(forKey: "think") as? [String: Int] ?? [:]
         var log: [String] = []
@@ -149,7 +223,7 @@ final class Gemini {
                 } catch {
                     let ns = error as NSError
                     if ns.code == NSURLErrorNotConnectedToInternet {
-                        throw GeminiError(message: "Нет интернета.")
+                        throw GeminiError(message: "Нет интернета.", retry: true)
                     }
                     log.append("\(model): " + (ns.code == NSURLErrorTimedOut ? "нет ответа за 12 с" : "сеть: \(ns.localizedDescription)"))
                     break
@@ -183,7 +257,7 @@ final class Gemini {
             }
         }
         let head = rateLimited ? "Лимит бесплатных запросов исчерпан. Попробуй чуть позже." : "Не получилось достучаться до Gemini."
-        throw GeminiError(message: head + "\n" + log.joined(separator: "\n"))
+        throw GeminiError(message: head + "\n" + log.joined(separator: "\n"), retry: true)
     }
 
     func discoverModels(key: String) async throws -> [String] {
@@ -210,6 +284,13 @@ final class Gemini {
     }
 
     // MARK: Помощники
+
+    /// Порядок попыток: сначала Flash-Lite (последняя удачная — первой среди своих), потом остальные flash. Не больше 4.
+    static func candidates(last: String, discovered: [String]) -> [String] {
+        var all: [String] = []
+        for m in [last] + discovered + fallbackModels where !m.isEmpty && !all.contains(m) { all.append(m) }
+        return Array((all.filter { $0.contains("lite") } + all.filter { !$0.contains("lite") }).prefix(4))
+    }
 
     static func score(_ name: String) -> Double {
         var s = 0.0
@@ -242,6 +323,11 @@ final class Gemini {
             .joined()
     }
 
+    static func parse(_ text: String) -> AssistantReply? {
+        guard let data = extractJSON(text) else { return nil }
+        return try? JSONDecoder().decode(AssistantReply.self, from: data)
+    }
+
     static func extractJSON(_ text: String) -> Data? {
         let data = Data(text.utf8)
         if (try? JSONSerialization.jsonObject(with: data)) != nil { return data }
@@ -264,15 +350,15 @@ final class Gemini {
           "type": "OBJECT",
           "properties": {
             "heard": {"type": "STRING"},
-            "action": {"type": "STRING"},
+            "action": {"type": "STRING", "enum": ["add", "ask_due", "update", "none"]},
             "tasks": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {
               "title": {"type": "STRING"},
               "due": {"type": "STRING", "nullable": true},
-              "priority": {"type": "STRING"}
+              "priority": {"type": "STRING", "enum": ["high", "normal", "low"]}
             }, "required": ["title"]}},
             "updates": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {
               "id": {"type": "STRING"},
-              "priority": {"type": "STRING", "nullable": true},
+              "priority": {"type": "STRING", "nullable": true, "enum": ["high", "normal", "low"]},
               "due": {"type": "STRING", "nullable": true},
               "clear_due": {"type": "BOOLEAN", "nullable": true}
             }, "required": ["id"]}},

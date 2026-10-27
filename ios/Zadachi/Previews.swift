@@ -39,8 +39,10 @@ private enum PreviewData {
 struct Screens_Previews: PreviewProvider {
     static let device = PreviewDevice(rawValue: "iPhone 18 Pro Max")
 
-    static func screen(done: Bool = false, empty: Bool = false) -> some View {
+    static func screen(done: Bool = false, empty: Bool = false, bubble: Assistant.Bubble? = nil, toast: String? = nil) -> some View {
         let (store, assistant) = PreviewData.environment(empty: empty)
+        assistant.bubble = bubble
+        assistant.toast = toast
         return ContentView(startInDone: done)
             .environment(store)
             .environment(assistant)
@@ -57,6 +59,14 @@ struct Screens_Previews: PreviewProvider {
                 .previewDisplayName("Выполнено")
             screen(empty: true)
                 .previewDisplayName("Пусто")
+            screen(bubble: .init(heard: "Срочно оплатить интернет завтра",
+                                 text: "Нет интернета.\nФраза сохранена — добавлю задачу, когда появится связь."))
+                .previewDisplayName("Нет связи")
+            screen(bubble: .init(heard: "Позвонить маме", text: "Когда нужно позвонить маме?"))
+                .preferredColorScheme(.dark)
+                .previewDisplayName("Вопрос — тёмная")
+            screen(toast: "Готово: Купить корм коту")
+                .previewDisplayName("Готово · Вернуть")
             VStack(spacing: 24) {
                 MicButton(phase: .idle, level: 0) {}
                 MicButton(phase: .listening, level: 0.6) {}

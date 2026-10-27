@@ -13,6 +13,46 @@ nonisolated final class RequestBox: @unchecked Sendable {
     init(_ request: SFSpeechAudioBufferRecognitionRequest) { self.request = request }
 }
 
+/// Слабая ссылка, которую можно передать в фоновый поток (для колбэков из аудио, сети и т.п.).
+nonisolated final class WeakRef<T: AnyObject>: @unchecked Sendable {
+    weak var value: T?
+    init(_ value: T) { self.value = value }
+}
+
+// MARK: - Аудиосессия
+
+/// Все включения и выключения аудиосессии идут по очереди в одном фоновом потоке:
+/// выключение не тормозит интерфейс и запрос к Gemini, а новое включение
+/// всегда ждёт, пока закончится предыдущее выключение.
+nonisolated enum AudioSession {
+    static let queue = DispatchQueue(label: "zadachi.audio-session", qos: .userInitiated)
+
+    static func activateForRecording() throws {
+        try queue.sync {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .duckOthers])
+            // Без этого iOS глушит вибрацию, пока активна сессия записи.
+            try? session.setAllowHapticsAndSystemSoundsDuringRecording(true)
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+        }
+    }
+
+    static func activateForSpeaking() {
+        queue.sync {
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+            try? session.setActive(true)
+        }
+    }
+
+    /// Возвращаем звук другим приложениям — в фоне, не дожидаясь.
+    static func deactivateLater() {
+        queue.async {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
+    }
+}
+
 // MARK: - Распознавание речи (на устройстве)
 
 @MainActor
@@ -21,7 +61,9 @@ final class SpeechInput {
     /// Громкость 0…1 для анимации кнопки.
     var level: Float = 0
 
-    private let engine = AVAudioEngine()
+    /// Новый движок на каждую запись: если между записями подключили или отключили наушники,
+    /// старый движок помнит прежний формат микрофона, и установка «прослушки» может уронить приложение.
+    @ObservationIgnored private var engine: AVAudioEngine?
     private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "ru-RU"))
     @ObservationIgnored private var task: SFSpeechRecognitionTask?
     @ObservationIgnored private var box: RequestBox?
@@ -33,7 +75,7 @@ final class SpeechInput {
 
     /// Сколько ждём тишины после речи, прежде чем отправить фразу сами.
     /// Раньше отправить можно нажатием на микрофон.
-    private let pause: TimeInterval = 1.5
+    static let pause: TimeInterval = 1.2
 
     static func authorize() async -> String? {
         let speech = await speechAuthorization()
@@ -50,48 +92,56 @@ final class SpeechInput {
         }
     }
 
-    /// Слушает до паузы и возвращает текст (nil — ничего не расслышали).
+    /// Слушает до паузы и возвращает текст (nil — ничего не расслышали или запись отменили).
     func listen() async throws -> String? {
+        // На случай повторного запуска: прошлая запись завершается, а не «зависает».
+        if continuation != nil { complete(nil) }
+
         guard let recognizer, recognizer.isAvailable else {
             throw SpeechError(message: "Распознавание речи сейчас недоступно.")
         }
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .duckOthers])
-        // Без этого iOS глушит вибрацию, пока активна сессия записи.
-        try? session.setAllowHapticsAndSystemSoundsDuringRecording(true)
-        try session.setActive(true, options: .notifyOthersOnDeactivation)
 
-        let request = SFSpeechAudioBufferRecognitionRequest()
-        request.shouldReportPartialResults = true
-        if recognizer.supportsOnDeviceRecognition { request.requiresOnDeviceRecognition = true }
-        let box = RequestBox(request)
-        self.box = box
+        do {
+            try AudioSession.activateForRecording()
 
-        let input = engine.inputNode
-        let format = input.outputFormat(forBus: 0)
-        guard format.sampleRate > 0, format.channelCount > 0 else {
-            throw SpeechError(message: "Микрофон недоступен.")
-        }
-        input.removeTap(onBus: 0)
-        let onLevel: @Sendable (Float) -> Void = { [weak self] v in
-            Task { @MainActor in self?.level = v }
-        }
-        input.installTap(onBus: 0, bufferSize: 1024, format: format, block: Self.makeTap(box, onLevel: onLevel))
-        engine.prepare()
-        try engine.start()
+            let request = SFSpeechAudioBufferRecognitionRequest()
+            request.shouldReportPartialResults = true
+            if recognizer.supportsOnDeviceRecognition { request.requiresOnDeviceRecognition = true }
+            let box = RequestBox(request)
+            self.box = box
 
-        transcript = ""
-        started = Date()
-        lastChange = Date()
+            let engine = AVAudioEngine()
+            self.engine = engine
+            let input = engine.inputNode
+            let format = input.outputFormat(forBus: 0)
+            guard format.sampleRate > 0, format.channelCount > 0 else {
+                throw SpeechError(message: "Микрофон недоступен.")
+            }
+            let me = WeakRef(self)
+            let onLevel: @Sendable (Float) -> Void = { v in
+                Task { @MainActor in me.value?.level = v }
+            }
+            input.installTap(onBus: 0, bufferSize: 1024, format: format, block: Self.makeTap(box, onLevel: onLevel))
+            engine.prepare()
+            try engine.start()
 
-        let onResult: @Sendable (String?, Bool, Bool) -> Void = { [weak self] text, isFinal, failed in
-            Task { @MainActor in self?.handle(text, isFinal: isFinal, failed: failed) }
-        }
+            transcript = ""
+            started = Date()
+            lastChange = Date()
 
-        return await withCheckedContinuation { cont in
-            self.continuation = cont
-            self.task = recognizer.recognitionTask(with: request, resultHandler: Self.makeHandler(onResult))
-            self.watcher = Task { [weak self] in await self?.watch() }
+            let onResult: @Sendable (String?, Bool, Bool) -> Void = { text, isFinal, failed in
+                Task { @MainActor in me.value?.handle(text, isFinal: isFinal, failed: failed) }
+            }
+
+            return await withCheckedContinuation { cont in
+                self.continuation = cont
+                self.task = recognizer.recognitionTask(with: request, resultHandler: Self.makeHandler(onResult))
+                self.watcher = Task { [weak self] in await self?.watch() }
+            }
+        } catch {
+            // Запись не началась — убираем за собой, чтобы музыка в других приложениях не осталась приглушённой.
+            teardown()
+            throw error
         }
     }
 
@@ -112,7 +162,7 @@ final class SpeechInput {
             try? await Task.sleep(for: .milliseconds(100))
             guard continuation != nil else { return }
             let now = Date()
-            if !transcript.isEmpty && now.timeIntervalSince(lastChange) > pause { finish(); return }
+            if !transcript.isEmpty && now.timeIntervalSince(lastChange) > Self.pause { finish(); return }
             if transcript.isEmpty && now.timeIntervalSince(started) > 7 { finish(); return }
             if now.timeIntervalSince(started) > 30 { finish(); return }
         }
@@ -123,17 +173,25 @@ final class SpeechInput {
         continuation = nil
         watcher?.cancel()
         watcher = nil
-        engine.stop()
-        engine.inputNode.removeTap(onBus: 0)
+        teardown()
+        let result = (text?.isEmpty ?? true) ? nil : text
+        c.resume(returning: result)
+    }
+
+    /// Останавливает запись и освобождает микрофон. Аудиосессия выключается в фоне,
+    /// поэтому запрос к Gemini уходит сразу, не дожидаясь этого.
+    private func teardown() {
+        if let engine {
+            engine.stop()
+            engine.inputNode.removeTap(onBus: 0)
+        }
+        engine = nil
         box?.request.endAudio()
         task?.cancel()
         task = nil
         box = nil
         level = 0
-        // Освобождаем аудиосессию: возвращаем звук другим приложениям и включаем вибрацию.
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        let result = (text?.isEmpty ?? true) ? nil : text
-        c.resume(returning: result)
+        AudioSession.deactivateLater()
     }
 
     nonisolated private static func makeTap(_ box: RequestBox, onLevel: @escaping @Sendable (Float) -> Void) -> AVAudioNodeTapBlock {
@@ -156,12 +214,14 @@ final class SpeechInput {
     }
 }
 
-// MARK: - Озвучка вопросов
+// MARK: - Озвучка вопросов (только при VoiceOver)
 
 @MainActor
 final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
     private let synth = AVSpeechSynthesizer()
     private var continuation: CheckedContinuation<Void, Never>?
+    /// Номер текущей фразы: таймер прошлой фразы не обрывает следующую.
+    private var token = 0
 
     override init() {
         super.init()
@@ -170,9 +230,9 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
 
     func speak(_ text: String) async {
         stop()
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-        try? session.setActive(true)
+        token += 1
+        let my = token
+        AudioSession.activateForSpeaking()
         let u = AVSpeechUtterance(string: text)
         u.voice = Self.voice()
         u.rate = AVSpeechUtteranceDefaultSpeechRate * 1.05
@@ -182,8 +242,14 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
             synth.speak(u)
             Task { [weak self] in
                 try? await Task.sleep(for: .seconds(limit))
-                self?.resume()
+                guard let self, self.token == my else { return }
+                self.resume()
             }
+        }
+        if token == my {
+            if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
+            // Возвращаем громкость другим приложениям.
+            AudioSession.deactivateLater()
         }
     }
 

@@ -41,8 +41,17 @@ struct ContentView: View {
         }
         .onAppear { assistant.gemini.warmUp() }
         .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active { assistant.gemini.warmUp() }
+            if newPhase == .active {
+                store.refreshDay()
+                assistant.gemini.warmUp()
+                // Фразы, которые не успели уйти (закрыли приложение, не было сети), отправляем снова.
+                Task { await assistant.flushQueue() }
+            }
             if newPhase == .background { assistant.cancelAll() }
+        }
+        // Полночь (и смена часового пояса): «Сегодня» становится «Просрочено», «Завтра» — «Сегодня».
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+            store.refreshDay()
         }
     }
 
@@ -163,6 +172,9 @@ struct ToolbarIcon: View {
 // MARK: - Строка задачи
 
 struct TaskRow: View {
+    /// Скругление карточек списка в iOS 26.
+    static let cornerRadius: CGFloat = 26
+
     let task: TaskItem
     let fresh: Bool
     @Environment(TaskStore.self) private var store
@@ -182,7 +194,7 @@ struct TaskRow: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 PriorityTag(priority: task.priority) {
-                    withAnimation(.snappy) { store.setPriority(task.id, task.priority.next) }
+                    withAnimation(.snappy) { _ = store.setPriority(task.id, task.priority.next) }
                     UISelectionFeedbackGenerator().selectionChanged()
                 }
                 Text(task.title)
@@ -192,6 +204,13 @@ struct TaskRow: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, 4)
+        // Строка занимает всю ячейку: отступы те же, что ставит система (20 по бокам, 15 сверху и снизу),
+        // только теперь они внутри строки. Тогда поднятая при перетаскивании ячейка
+        // обрезается по скруглённой форме, как карточки списка, и тень идёт по ней же.
+        .padding(.horizontal, 20)
+        .padding(.vertical, 15)
+        .listRowInsets(EdgeInsets())
+        .contentShape(.dragPreview, RoundedRectangle(cornerRadius: TaskRow.cornerRadius, style: .continuous))
         .listRowBackground(fresh ? Color.blue.opacity(0.12) : Color(.secondarySystemGroupedBackground))
         .animation(.easeOut(duration: 0.8), value: fresh)
         .swipeActions(edge: .trailing) {
@@ -351,8 +370,7 @@ struct BubbleView: View {
         }
         .padding(14)
         .frame(maxWidth: 520)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: .black.opacity(0.08), radius: 16, y: 6)
+        .glassCard(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 
@@ -371,7 +389,21 @@ struct ToastView: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
         .frame(maxWidth: 520)
-        .background(.regularMaterial, in: Capsule())
-        .shadow(color: .black.opacity(0.08), radius: 16, y: 6)
+        .glassCard(Capsule())
+    }
+}
+
+extension View {
+    /// Подложка сообщений: Liquid Glass, как у кнопки микрофона (iOS 26+);
+    /// на старых системах — системный материал с мягкой тенью.
+    @ViewBuilder
+    func glassCard<S: Shape>(_ shape: S) -> some View {
+        if #available(iOS 26.0, *) {
+            self.glassEffect(.regular, in: shape)
+        } else {
+            self
+                .background(.regularMaterial, in: shape)
+                .shadow(color: .black.opacity(0.08), radius: 16, y: 6)
+        }
     }
 }
