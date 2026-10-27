@@ -5,36 +5,25 @@ struct ContentView: View {
     @Environment(TaskStore.self) private var store
     @Environment(Assistant.self) private var assistant
     @Environment(\.scenePhase) private var scenePhase
+    /// Экран «Выполнено» — режим просмотра сделанного, без действий.
+    @State private var showDone = false
 
     var body: some View {
         @Bindable var assistant = assistant
         NavigationStack {
-            List {
-                ForEach(store.sections) { section in
-                    Section {
-                        ForEach(section.items) { task in
-                            TaskRow(task: task, fresh: store.freshIDs.contains(task.id))
-                        }
-                    } header: {
-                        Text(section.title)
-                            .foregroundStyle(section.overdue ? Color.red : Color.secondary)
-                    }
-                }
+            Group {
+                if showDone { doneList } else { taskList }
             }
-            .listStyle(.insetGrouped)
-            .overlay {
-                if store.tasks.isEmpty {
-                    ContentUnavailableView {
-                        Label("Пока пусто", systemImage: "checklist")
-                    } description: {
-                        Text("Нажми на микрофон и скажи, например:\n«Купить продукты завтра»")
-                    }
-                    .padding(.bottom, 120)
-                }
-            }
-            .navigationTitle(store.title)
+            .navigationTitle(showDone ? "Выполнено" : store.title)
             .navigationBarTitleDisplayMode(.inline)   // маленький заголовок сразу: главное на экране — задачи
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    ModeButton(showDone: showDone, pulse: store.done.count) {
+                        if !showDone { assistant.cancelAll() }
+                        withAnimation(.snappy) { showDone.toggle() }
+                        UISelectionFeedbackGenerator().selectionChanged()
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         assistant.settingsOpen = true
@@ -45,13 +34,109 @@ struct ContentView: View {
                     .accessibilityLabel("Настройки")
                 }
             }
-            .safeAreaInset(edge: .bottom) { BottomBar() }
             .sheet(isPresented: $assistant.settingsOpen) { SettingsView() }
         }
         .onAppear { assistant.gemini.warmUp() }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active { assistant.gemini.warmUp() }
             if newPhase == .background { assistant.cancelAll() }
+        }
+    }
+
+    // MARK: Главный список
+
+    private var taskList: some View {
+        List {
+            ForEach(store.sections) { section in
+                Section {
+                    ForEach(section.items) { task in
+                        TaskRow(task: task, fresh: store.freshIDs.contains(task.id))
+                    }
+                } header: {
+                    Text(section.title)
+                        .foregroundStyle(section.overdue ? Color.red : Color.secondary)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .overlay {
+            if store.tasks.isEmpty {
+                ContentUnavailableView {
+                    Label("Пока пусто", systemImage: "checklist")
+                } description: {
+                    Text("Нажми на микрофон и скажи, например:\n«Купить продукты завтра»")
+                }
+                .padding(.bottom, 120)
+            }
+        }
+        // Сообщения лежат поверх списка и не меняют высоту нижней панели —
+        // поэтому за ними ничего не тянется и список не прыгает.
+        .overlay(alignment: .bottom) { Messages() }
+        .safeAreaInset(edge: .bottom) { BottomBar() }
+    }
+
+    // MARK: Выполнено
+
+    private var doneList: some View {
+        List {
+            ForEach(store.doneSections) { section in
+                Section {
+                    ForEach(section.items) { task in
+                        DoneRow(task: task)
+                    }
+                } header: {
+                    Text(section.title)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .overlay {
+            if store.done.isEmpty {
+                ContentUnavailableView {
+                    Label("Пока ничего не выполнено", systemImage: "checkmark.circle")
+                } description: {
+                    Text("Здесь будут задачи, которые ты закрыл.")
+                }
+            }
+        }
+    }
+}
+
+/// Левая кнопка в шапке: на главном экране — статистика, на экране «Выполнено» — маленький микрофон.
+/// Когда закрываешь задачу, иконка статистики переливается цветами кнопки записи.
+struct ModeButton: View {
+    let showDone: Bool
+    let pulse: Int
+    let action: () -> Void
+    @State private var shimmering = false
+
+    var body: some View {
+        Button(action: action) {
+            TimelineView(.animation(paused: !shimmering)) { context in
+                let t = context.date.timeIntervalSinceReferenceDate
+                let on = shimmering && !showDone
+                Image(systemName: showDone ? "mic.fill" : "chart.bar.fill")
+                    .font(.title2)
+                    .foregroundStyle(
+                        on
+                            ? AnyShapeStyle(AngularGradient(
+                                colors: [MicButton.blue, MicButton.cyan, MicButton.violet, MicButton.blue],
+                                center: .center,
+                                angle: .degrees((t * 360).truncatingRemainder(dividingBy: 360))))
+                            : AnyShapeStyle(Color.accentColor)
+                    )
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .symbolEffect(.bounce, value: pulse)
+        }
+        .accessibilityLabel(showDone ? "Вернуться к задачам" : "Выполненные задачи")
+        .onChange(of: pulse) { old, new in
+            guard new > old else { return }
+            shimmering = true
+            Task {
+                try? await Task.sleep(for: .seconds(1.4))
+                shimmering = false
+            }
         }
     }
 }
@@ -111,24 +196,39 @@ struct TaskRow: View {
     }
 }
 
+/// Строка в истории: выглядит как обычная задача, но отмечена выполненной и без действий.
+struct DoneRow: View {
+    let task: TaskItem
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.title2)
+                .foregroundStyle(Color.blue)
+                .frame(width: 28)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 6) {
+                PriorityLabel(priority: task.priority)
+                Text(task.title)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue("Выполнено")
+    }
+}
+
 struct PriorityTag: View {
     let priority: Priority
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 5) {
-                Circle()
-                    .fill(priority.color)
-                    .frame(width: 6, height: 6)
-                Text(priority.label)
-            }
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(priority.color)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(priority.color.opacity(0.12), in: Capsule())
-            .contentShape(Rectangle())
+            PriorityLabel(priority: priority)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.borderless)
         .accessibilityLabel("Приоритет: \(priority.label)")
@@ -136,13 +236,57 @@ struct PriorityTag: View {
     }
 }
 
+/// Сам тег приоритета (без действия).
+struct PriorityLabel: View {
+    let priority: Priority
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(priority.color)
+                .frame(width: 6, height: 6)
+            Text(priority.label)
+        }
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(priority.color)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(priority.color.opacity(0.12), in: Capsule())
+    }
+}
+
 // MARK: - Нижняя панель
 
+/// Только кнопка микрофона и мягкий переход списка под неё. Высота постоянная.
 struct BottomBar: View {
     @Environment(Assistant.self) private var assistant
 
     var body: some View {
-        VStack(spacing: 12) {
+        MicButton(phase: assistant.phase, level: assistant.speech.level) {
+            assistant.micTapped()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 8)
+        .background(alignment: .bottom) {
+            LinearGradient(
+                stops: [
+                    .init(color: Color(.systemGroupedBackground).opacity(0), location: 0),
+                    .init(color: Color(.systemGroupedBackground), location: 0.45)
+                ],
+                startPoint: .top, endPoint: .bottom
+            )
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+        }
+    }
+}
+
+/// Сообщение или «Готово · Вернуть» над кнопкой микрофона — сами по себе, без подложки.
+struct Messages: View {
+    @Environment(Assistant.self) private var assistant
+
+    var body: some View {
+        VStack {
             if let bubble = assistant.bubble {
                 BubbleView(bubble: bubble)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -150,23 +294,10 @@ struct BottomBar: View {
                 ToastView(text: toast) { assistant.undo() }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-            MicButton(phase: assistant.phase, level: assistant.speech.level) {
-                assistant.micTapped()
-            }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 24)
+        .padding(.bottom, 8)
         .frame(maxWidth: .infinity)
-        .background(alignment: .bottom) {
-            LinearGradient(
-                stops: [
-                    .init(color: Color(.systemGroupedBackground).opacity(0), location: 0),
-                    .init(color: Color(.systemGroupedBackground), location: 0.35)
-                ],
-                startPoint: .top, endPoint: .bottom
-            )
-            .ignoresSafeArea()
-        }
         .animation(.snappy, value: assistant.bubble)
         .animation(.snappy, value: assistant.toast)
     }

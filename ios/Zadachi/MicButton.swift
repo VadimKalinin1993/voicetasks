@@ -110,7 +110,7 @@ private struct Glow: View {
                 style: StrokeStyle(lineWidth: 14, lineCap: .round)
             )
             .frame(width: size - 6, height: size - 6)
-            .blur(radius: 9)
+            .blur(radius: 14)
             .opacity(0.9)
     }
 }

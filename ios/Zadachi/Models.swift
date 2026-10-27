@@ -51,6 +51,8 @@ struct TaskItem: Codable, Identifiable, Equatable {
     var due: String?          // "yyyy-MM-dd" или nil
     var priority: Priority
     var created: Date
+    /// Когда задачу закрыли (только у задач в истории).
+    var completed: Date? = nil
 }
 
 /// Задача, которую распознал Gemini, но которая ещё не в списке.
@@ -129,6 +131,15 @@ enum Dates {
         return (sameYear ? dayMonth : dayMonthYear).string(from: d)
     }
 
+    /// Заголовок секции в истории — день, когда задачу закрыли.
+    static func doneSectionTitle(_ d: Date) -> String {
+        let cal = Calendar.current
+        if cal.isDateInToday(d) { return "Сегодня" }
+        if cal.isDateInYesterday(d) { return "Вчера" }
+        let wd = weekday.string(from: d)
+        return wd.prefix(1).uppercased() + wd.dropFirst() + ", " + longDate(d)
+    }
+
     /// Заголовок секции целиком описывает срок, поэтому у самих задач даты нет.
     static func sectionTitle(_ s: String?) -> (title: String, overdue: Bool) {
         guard let s, let n = dayDiff(s), let d = date(s) else { return ("Без срока", false) }
@@ -146,6 +157,8 @@ enum Dates {
 @Observable
 final class TaskStore {
     private(set) var tasks: [TaskItem] = []
+    /// История выполненных задач. Хранится на телефоне без ограничения по сроку.
+    private(set) var done: [TaskItem] = []
     /// Только что добавленные или изменённые задачи — на секунду подсвечиваются.
     var freshIDs: Set<String> = []
     @ObservationIgnored private var lastRemoved: [TaskItem] = []
@@ -154,6 +167,10 @@ final class TaskStore {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("tasks.json")
+    }()
+    private let doneURL: URL = {
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return dir.appendingPathComponent("done.json")
     }()
 
     init() { load() }
@@ -169,6 +186,20 @@ final class TaskStore {
             }
             let head = Dates.sectionTitle(key == "~none" ? nil : key)
             return TaskSection(id: key, title: head.title, overdue: head.overdue, items: items)
+        }
+    }
+
+    /// Выполненные задачи по дням закрытия, свежие сверху.
+    var doneSections: [TaskSection] {
+        let cal = Calendar.current
+        var groups: [Date: [TaskItem]] = [:]
+        for t in done {
+            let day = cal.startOfDay(for: t.completed ?? t.created)
+            groups[day, default: []].append(t)
+        }
+        return groups.keys.sorted(by: >).map { day in
+            let items = (groups[day] ?? []).sorted { ($0.completed ?? $0.created) > ($1.completed ?? $1.created) }
+            return TaskSection(id: "done-\(day.timeIntervalSince1970)", title: Dates.doneSectionTitle(day), overdue: false, items: items)
         }
     }
 
@@ -191,14 +222,20 @@ final class TaskStore {
         guard !removed.isEmpty else { return [] }
         tasks.removeAll { ids.contains($0.id) }
         lastRemoved = removed
+        let now = Date()
+        done.append(contentsOf: removed.map { var t = $0; t.completed = now; return t })
         save()
+        saveDone()
         return removed
     }
 
     func undo() {
+        let ids = Set(lastRemoved.map(\.id))
         for t in lastRemoved where !contains(t.id) { tasks.append(t) }
+        done.removeAll { ids.contains($0.id) }
         lastRemoved = []
         save()
+        saveDone()
     }
 
     func setPriority(_ id: String, _ p: Priority) {
@@ -228,13 +265,23 @@ final class TaskStore {
     }
 
     private func load() {
-        guard let data = try? Data(contentsOf: fileURL),
-              let list = try? JSONDecoder().decode([TaskItem].self, from: data) else { return }
-        tasks = list
+        if let data = try? Data(contentsOf: fileURL),
+           let list = try? JSONDecoder().decode([TaskItem].self, from: data) {
+            tasks = list
+        }
+        if let data = try? Data(contentsOf: doneURL),
+           let list = try? JSONDecoder().decode([TaskItem].self, from: data) {
+            done = list
+        }
     }
 
     private func save() {
         guard let data = try? JSONEncoder().encode(tasks) else { return }
         try? data.write(to: fileURL, options: .atomic)
+    }
+
+    private func saveDone() {
+        guard let data = try? JSONEncoder().encode(done) else { return }
+        try? data.write(to: doneURL, options: .atomic)
     }
 }
