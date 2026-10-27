@@ -6,7 +6,11 @@ struct ContentView: View {
     @Environment(Assistant.self) private var assistant
     @Environment(\.scenePhase) private var scenePhase
     /// Экран «Выполнено» — режим просмотра сделанного, без действий.
-    @State private var showDone = false
+    @State private var showDone: Bool
+
+    init(startInDone: Bool = false) {
+        _showDone = State(initialValue: startInDone)
+    }
 
     var body: some View {
         @Bindable var assistant = assistant

@@ -175,6 +175,14 @@ final class TaskStore {
 
     init() { load() }
 
+    /// Для предпросмотра в Xcode: задачи в памяти, ничего не пишется на диск.
+    init(preview tasks: [TaskItem], done: [TaskItem]) {
+        self.tasks = tasks
+        self.done = done
+        self.isPreview = true
+    }
+    @ObservationIgnored private var isPreview = false
+
     var title: String { tasks.isEmpty ? "Задач нет" : tasksCount(tasks.count) }
 
     var sections: [TaskSection] {
@@ -276,11 +284,13 @@ final class TaskStore {
     }
 
     private func save() {
+        guard !isPreview else { return }
         guard let data = try? JSONEncoder().encode(tasks) else { return }
         try? data.write(to: fileURL, options: .atomic)
     }
 
     private func saveDone() {
+        guard !isPreview else { return }
         guard let data = try? JSONEncoder().encode(done) else { return }
         try? data.write(to: doneURL, options: .atomic)
     }
