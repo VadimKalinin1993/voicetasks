@@ -32,8 +32,7 @@ struct ContentView: View {
                     Button {
                         assistant.settingsOpen = true
                     } label: {
-                        Image(systemName: "gearshape")
-                            .font(.title2)
+                        ToolbarIcon(name: "gearshape")
                     }
                     .accessibilityLabel("Настройки")
                 }
@@ -58,7 +57,7 @@ struct ContentView: View {
                     }
                 } header: {
                     Text(section.title)
-                        .foregroundStyle(section.overdue ? Color.red : Color.secondary)
+                        .foregroundStyle(section.overdue ? Color.orange : Color.secondary)
                 }
             }
         }
@@ -117,8 +116,7 @@ struct ModeButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: showDone ? "mic" : "chart.bar")
-                .font(.title2)
+            ToolbarIcon(name: showDone ? "mic" : "chart.bar")
                 .contentTransition(.symbolEffect(.replace))
                 .background {
                     Circle()
@@ -141,6 +139,21 @@ struct ModeButton: View {
                 withAnimation(.easeIn(duration: 0.35)) { glow = false }
             }
         }
+    }
+}
+
+/// Иконка в шапке: у всех кнопок одинаковый размер глифа и рамки,
+/// поэтому стеклянные кружки шестерёнки и статистики совпадают.
+struct ToolbarIcon: View {
+    let name: String
+
+    var body: some View {
+        Image(systemName: name)
+            .resizable()
+            .scaledToFit()
+            .fontWeight(.regular)
+            .frame(width: 22, height: 22)
+            .frame(width: 30, height: 30)
     }
 }
 

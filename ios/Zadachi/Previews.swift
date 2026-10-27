@@ -35,41 +35,37 @@ private enum PreviewData {
     }
 }
 
-#Preview("Задачи") {
-    let (store, assistant) = PreviewData.environment()
-    return ContentView()
-        .environment(store)
-        .environment(assistant)
-}
+/// Все экраны на iPhone 18 Pro Max (самый близкий к iPhone 16 Pro Max из доступных).
+struct Screens_Previews: PreviewProvider {
+    static let device = PreviewDevice(rawValue: "iPhone 18 Pro Max")
 
-#Preview("Задачи — тёмная тема") {
-    let (store, assistant) = PreviewData.environment()
-    return ContentView()
-        .environment(store)
-        .environment(assistant)
-        .preferredColorScheme(.dark)
-}
-
-#Preview("Выполнено") {
-    let (store, assistant) = PreviewData.environment()
-    return ContentView(startInDone: true)
-        .environment(store)
-        .environment(assistant)
-}
-
-#Preview("Пусто") {
-    let (store, assistant) = PreviewData.environment(empty: true)
-    return ContentView()
-        .environment(store)
-        .environment(assistant)
-}
-
-#Preview("Кнопка микрофона") {
-    VStack(spacing: 24) {
-        MicButton(phase: .idle, level: 0) {}
-        MicButton(phase: .listening, level: 0.6) {}
-        MicButton(phase: .thinking, level: 0) {}
+    static func screen(done: Bool = false, empty: Bool = false) -> some View {
+        let (store, assistant) = PreviewData.environment(empty: empty)
+        return ContentView(startInDone: done)
+            .environment(store)
+            .environment(assistant)
     }
-    .padding()
-    .background(Color(.systemGroupedBackground))
+
+    static var previews: some View {
+        Group {
+            screen()
+                .previewDisplayName("Задачи")
+            screen()
+                .preferredColorScheme(.dark)
+                .previewDisplayName("Задачи — тёмная")
+            screen(done: true)
+                .previewDisplayName("Выполнено")
+            screen(empty: true)
+                .previewDisplayName("Пусто")
+            VStack(spacing: 24) {
+                MicButton(phase: .idle, level: 0) {}
+                MicButton(phase: .listening, level: 0.6) {}
+                MicButton(phase: .thinking, level: 0) {}
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(.systemGroupedBackground))
+            .previewDisplayName("Кнопка микрофона")
+        }
+        .previewDevice(device)
+    }
 }
