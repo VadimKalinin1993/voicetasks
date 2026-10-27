@@ -8,7 +8,6 @@ struct SettingsView: View {
     @State private var checking = false
     @State private var status: String?
     @State private var details: String?
-    @AppStorage("tts") private var speakAloud = true
     @AppStorage("autoListen") private var autoListen = true
 
     var body: some View {
@@ -44,10 +43,9 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Toggle("Озвучивать вопросы", isOn: $speakAloud)
                     Toggle("Сразу слушать ответ", isOn: $autoListen)
                 } footer: {
-                    Text("Если срок задачи не назван, приложение спросит его голосом и сразу начнёт слушать ответ.")
+                    Text("Если срок задачи не назван, приложение спросит его и сразу начнёт слушать ответ. Вслух вопросы звучат только при включённом VoiceOver.")
                 }
 
                 if let t = assistant.timing {

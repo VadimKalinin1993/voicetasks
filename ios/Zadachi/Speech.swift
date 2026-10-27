@@ -31,8 +31,9 @@ final class SpeechInput {
     @ObservationIgnored private var continuation: CheckedContinuation<String?, Never>?
     @ObservationIgnored private var watcher: Task<Void, Never>?
 
-    /// Пауза после речи, по которой считаем фразу законченной.
-    private let pause: TimeInterval = 0.9
+    /// Сколько ждём тишины после речи, прежде чем отправить фразу сами.
+    /// Раньше отправить можно нажатием на микрофон.
+    private let pause: TimeInterval = 1.5
 
     static func authorize() async -> String? {
         let speech = await speechAuthorization()
@@ -56,6 +57,8 @@ final class SpeechInput {
         }
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .duckOthers])
+        // Без этого iOS глушит вибрацию, пока активна сессия записи.
+        try? session.setAllowHapticsAndSystemSoundsDuringRecording(true)
         try session.setActive(true, options: .notifyOthersOnDeactivation)
 
         let request = SFSpeechAudioBufferRecognitionRequest()
@@ -127,6 +130,8 @@ final class SpeechInput {
         task = nil
         box = nil
         level = 0
+        // Освобождаем аудиосессию: возвращаем звук другим приложениям и включаем вибрацию.
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         let result = (text?.isEmpty ?? true) ? nil : text
         c.resume(returning: result)
     }

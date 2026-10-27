@@ -33,6 +33,7 @@ struct ContentView: View {
                 }
             }
             .navigationTitle(store.title)
+            .toolbarTitleDisplayMode(.inlineLarge)   // крупный заголовок на одной линии с шестерёнкой
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -82,6 +83,7 @@ struct TaskRow: View {
                 }
                 Text(task.title)
                     .foregroundStyle(done ? Color.secondary : Color.primary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }

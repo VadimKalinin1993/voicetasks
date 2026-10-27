@@ -44,7 +44,8 @@ final class Assistant {
         }
     }
 
-    private var speakAloud: Bool { UserDefaults.standard.object(forKey: "tts") as? Bool ?? true }
+    /// Голосом отвечаем только при включённом VoiceOver, в остальных случаях — только текст.
+    private var speakAloud: Bool { UIAccessibility.isVoiceOverRunning }
     private var autoListen: Bool { UserDefaults.standard.object(forKey: "autoListen") as? Bool ?? true }
 
     // MARK: Кнопка микрофона
@@ -127,7 +128,8 @@ final class Assistant {
         let hadPending = pending != nil
         var reply = (r.reply ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Добавление, отметка и правка проходят молча: подтверждение видно в самом списке.
+        // Добавление и правка проходят молча: подтверждение видно в самом списке.
+        // Убрать задачу голосом нельзя — только кружком или свайпом.
         if (action == "add" && !list.isEmpty) || (action == "ask_due" && !list.isEmpty && hadPending) {
             withAnimation(.snappy) { store.add(list) }
             done()
@@ -153,14 +155,8 @@ final class Assistant {
             pending = nil
             reply = "Не нашёл такую задачу."
         } else if action == "complete" {
-            let ids = Set(r.complete_ids ?? [])
-            if store.tasks.contains(where: { ids.contains($0.id) }) {
-                complete(ids)
-                done()
-                return
-            }
             pending = nil
-            reply = "Не нашёл такую задачу."
+            reply = "Голосом задачи не убираются — отметь её кружком в списке."
         } else if action == "ask_due" && !list.isEmpty {
             pending = list
             if reply.isEmpty { reply = "Когда нужно сделать?" }
@@ -176,7 +172,11 @@ final class Assistant {
             guard phase == .speaking else { return }   // нажали «стоп»
         }
         phase = .idle
-        if pending != nil && autoListen { await run(auto: true) }
+        if pending != nil && autoListen {
+            try? await Task.sleep(for: .milliseconds(400))   // время прочитать вопрос
+            guard phase == .idle, pending != nil else { return }
+            await run(auto: true)
+        }
     }
 
     private func done() {
@@ -184,7 +184,9 @@ final class Assistant {
         lastQuestion = nil
         withAnimation(.snappy) { bubble = nil }
         phase = .idle
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        let haptic = UINotificationFeedbackGenerator()
+        haptic.prepare()
+        haptic.notificationOccurred(.success)
     }
 
     // MARK: Список
