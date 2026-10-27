@@ -102,40 +102,39 @@ struct ContentView: View {
     }
 }
 
-/// Левая кнопка в шапке: на главном экране — статистика, на экране «Выполнено» — маленький микрофон.
-/// Когда закрываешь задачу, иконка статистики переливается цветами кнопки записи.
+/// Левая кнопка в шапке — такая же системная иконка, как шестерёнка:
+/// на главном экране «статистика», на экране «Выполнено» — микрофон.
+/// Когда закрываешь задачу, за иконкой на долю секунды вспыхивает мягкий свет, как у кнопки записи.
 struct ModeButton: View {
     let showDone: Bool
     let pulse: Int
     let action: () -> Void
-    @State private var shimmering = false
+    @State private var glow = false
 
     var body: some View {
         Button(action: action) {
-            TimelineView(.animation(paused: !shimmering)) { context in
-                let t = context.date.timeIntervalSinceReferenceDate
-                let on = shimmering && !showDone
-                Image(systemName: showDone ? "mic.fill" : "chart.bar.fill")
-                    .font(.title2)
-                    .foregroundStyle(
-                        on
-                            ? AnyShapeStyle(AngularGradient(
-                                colors: [MicButton.blue, MicButton.cyan, MicButton.violet, MicButton.blue],
-                                center: .center,
-                                angle: .degrees((t * 360).truncatingRemainder(dividingBy: 360))))
-                            : AnyShapeStyle(Color.accentColor)
-                    )
-                    .contentTransition(.symbolEffect(.replace))
-            }
-            .symbolEffect(.bounce, value: pulse)
+            Image(systemName: showDone ? "mic" : "chart.bar")
+                .font(.title2)
+                .contentTransition(.symbolEffect(.replace))
+                .background {
+                    Circle()
+                        .fill(AngularGradient(
+                            colors: [MicButton.blue, MicButton.cyan, MicButton.violet, MicButton.blue],
+                            center: .center))
+                        .frame(width: 34, height: 34)
+                        .blur(radius: 8)
+                        .scaleEffect(glow ? 1.1 : 0.5)
+                        .opacity(glow ? 0.85 : 0)
+                        .allowsHitTesting(false)
+                }
         }
         .accessibilityLabel(showDone ? "Вернуться к задачам" : "Выполненные задачи")
         .onChange(of: pulse) { old, new in
-            guard new > old else { return }
-            shimmering = true
+            guard new > old, !showDone else { return }
+            withAnimation(.easeOut(duration: 0.15)) { glow = true }
             Task {
-                try? await Task.sleep(for: .seconds(1.4))
-                shimmering = false
+                try? await Task.sleep(for: .milliseconds(180))
+                withAnimation(.easeIn(duration: 0.35)) { glow = false }
             }
         }
     }
