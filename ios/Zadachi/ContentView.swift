@@ -55,6 +55,9 @@ struct ContentView: View {
                     ForEach(section.items) { task in
                         TaskRow(task: task, fresh: store.freshIDs.contains(task.id))
                     }
+                    .onMove { from, to in
+                        withAnimation(.snappy) { store.move(section: section.id, from: from, to: to) }
+                    }
                 } header: {
                     Text(section.title)
                         .foregroundStyle(section.overdue ? Color.orange : Color.secondary)
@@ -283,15 +286,17 @@ struct BottomBar: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 8)
+        // Лёгкая дымка только у самого низа: прячет край контента, но не съедает экран.
         .background(alignment: .bottom) {
             LinearGradient(
                 stops: [
                     .init(color: Color(.systemGroupedBackground).opacity(0), location: 0),
-                    .init(color: Color(.systemGroupedBackground), location: 0.45)
+                    .init(color: Color(.systemGroupedBackground), location: 0.6)
                 ],
                 startPoint: .top, endPoint: .bottom
             )
-            .ignoresSafeArea()
+            .frame(height: 60)
+            .ignoresSafeArea(edges: .bottom)
             .allowsHitTesting(false)
         }
     }

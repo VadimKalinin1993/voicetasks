@@ -53,6 +53,13 @@ struct TaskItem: Codable, Identifiable, Equatable {
     var created: Date
     /// Когда задачу закрыли (только у задач в истории).
     var completed: Date? = nil
+    /// Место в списке дня, если задачу двигали вручную.
+    var position: Double? = nil
+
+    /// Порядок внутри дня: сначала то, что расставлено вручную, потом по приоритету и времени создания.
+    var sortKey: Double {
+        position ?? (1e12 + Double(priority.rank) * 1e10 + created.timeIntervalSince1970)
+    }
 }
 
 /// Задача, которую распознал Gemini, но которая ещё не в списке.
@@ -189,9 +196,7 @@ final class TaskStore {
         var groups: [String: [TaskItem]] = [:]
         for t in tasks { groups[t.due ?? "~none", default: []].append(t) }
         return groups.keys.sorted().map { key in
-            let items = (groups[key] ?? []).sorted {
-                ($0.priority.rank, $0.created) < ($1.priority.rank, $1.created)
-            }
+            let items = (groups[key] ?? []).sorted { $0.sortKey < $1.sortKey }
             let head = Dates.sectionTitle(key == "~none" ? nil : key)
             return TaskSection(id: key, title: head.title, overdue: head.overdue, items: items)
         }
@@ -244,6 +249,16 @@ final class TaskStore {
         lastRemoved = []
         save()
         saveDone()
+    }
+
+    /// Перетаскивание задачи внутри дня (долгое нажатие и движение пальцем).
+    func move(section id: String, from: IndexSet, to: Int) {
+        guard var items = sections.first(where: { $0.id == id })?.items else { return }
+        items.move(fromOffsets: from, toOffset: to)
+        for (i, t) in items.enumerated() {
+            if let k = tasks.firstIndex(where: { $0.id == t.id }) { tasks[k].position = Double(i) }
+        }
+        save()
     }
 
     func setPriority(_ id: String, _ p: Priority) {
