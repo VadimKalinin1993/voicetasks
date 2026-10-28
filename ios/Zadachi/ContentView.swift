@@ -213,13 +213,13 @@ struct TaskRow: View {
         .contentShape(.dragPreview, RoundedRectangle(cornerRadius: TaskRow.cornerRadius, style: .continuous))
         .listRowBackground(fresh ? Color.blue.opacity(0.12) : Color(.secondarySystemGroupedBackground))
         .animation(.easeOut(duration: 0.8), value: fresh)
+        // Свайп влево — удалить совсем (кружок — в «Выполнено»).
         .swipeActions(edge: .trailing) {
-            Button {
-                assistant.complete([task.id])
+            Button(role: .destructive) {
+                assistant.delete(task.id)
             } label: {
-                Label("Готово", systemImage: "checkmark")
+                Label("Удалить", systemImage: "trash")
             }
-            .tint(.blue)
         }
     }
 

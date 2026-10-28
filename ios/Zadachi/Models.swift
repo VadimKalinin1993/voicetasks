@@ -233,7 +233,9 @@ final class TaskStore {
     /// Текущий день. Меняется после полуночи и при открытии приложения на следующий день —
     /// тогда заголовки «Сегодня», «Завтра», «Просрочено» пересчитываются сами.
     private(set) var today = Dates.today()
+    /// Последнее действие, которое можно отменить кнопкой «Вернуть» в тосте.
     @ObservationIgnored private var lastRemoved: [TaskItem] = []
+    @ObservationIgnored private var lastWasDelete = false
 
     private let fileURL: URL = {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -308,6 +310,7 @@ final class TaskStore {
         guard !removed.isEmpty else { return [] }
         tasks.removeAll { ids.contains($0.id) }
         lastRemoved = removed
+        lastWasDelete = false
         let now = Date()
         done.append(contentsOf: removed.map { var t = $0; t.completed = now; return t })
         save()
@@ -315,13 +318,33 @@ final class TaskStore {
         return removed
     }
 
+    /// Удаление свайпом: задача пропадает совсем — не попадает в «Выполнено» и стирается из файла.
+    /// Вернуть её можно только кнопкой в тосте, пока он на экране.
+    @discardableResult
+    func delete(id: String) -> TaskItem? {
+        guard let i = tasks.firstIndex(where: { $0.id == id }) else { return nil }
+        let removed = tasks.remove(at: i)
+        lastRemoved = [removed]
+        lastWasDelete = true
+        save()
+        return removed
+    }
+
+    /// «Вернуть»: задача встаёт обратно на свой день, с тем же приоритетом и ручным местом.
     func undo() {
         let ids = Set(lastRemoved.map(\.id))
         for t in lastRemoved where !contains(t.id) { tasks.append(t) }
-        done.removeAll { ids.contains($0.id) }
+        if !lastWasDelete {
+            done.removeAll { ids.contains($0.id) }
+            saveDone()
+        }
         lastRemoved = []
         save()
-        saveDone()
+    }
+
+    /// Тост исчез — отменить уже нельзя, удалённая задача больше нигде не хранится.
+    func forgetUndo() {
+        lastRemoved = []
     }
 
     /// Перетаскивание задачи внутри дня (долгое нажатие и движение пальцем).

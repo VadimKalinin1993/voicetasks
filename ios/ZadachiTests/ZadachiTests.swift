@@ -141,6 +141,35 @@ struct StoreTests {
         #expect(store.complete(ids: ["нет такой"]).isEmpty)
     }
 
+    @Test func deleteAndUndo() {
+        let store = TaskStore(preview: [task("a", due: "2026-10-27", priority: .high, position: 1), task("b")], done: [])
+        let removed = store.delete(id: "a")
+        #expect(removed?.id == "a")
+        #expect(store.tasks.map(\.id) == ["b"])
+        #expect(store.done.isEmpty)                         // в «Выполнено» не попадает
+
+        store.undo()
+        let back = store.tasks.first { $0.id == "a" }
+        #expect(back?.due == "2026-10-27")                  // тот же день, приоритет и место
+        #expect(back?.priority == .high)
+        #expect(back?.position == 1)
+        #expect(store.done.isEmpty)
+
+        store.delete(id: "a")
+        store.forgetUndo()                                  // тост исчез
+        store.undo()
+        #expect(store.tasks.map(\.id) == ["b"])            // вернуть уже нельзя
+        #expect(store.delete(id: "нет такой") == nil)
+    }
+
+    @Test func undoAfterCompleteStillWorks() {
+        let store = TaskStore(preview: [task("a")], done: [task("old")])
+        store.complete(ids: ["a"])
+        store.undo()
+        #expect(store.tasks.map(\.id) == ["a"])
+        #expect(store.done.map(\.id) == ["old"])
+    }
+
     @Test func addMakesUniqueIDs() {
         let store = TaskStore(preview: [], done: [])
         store.add((0..<50).map { NewTask(title: "t\($0)", due: nil, priority: .normal) })

@@ -303,6 +303,12 @@ final class Assistant {
         showToast(removed.count == 1 ? "Готово: \(removed[0].title)" : "Готово: \(tasksCount(removed.count))")
     }
 
+    /// Свайп влево: задача удаляется совсем, в тосте — «Вернуть».
+    func delete(_ id: String) {
+        guard let removed = withAnimation(.snappy, { store.delete(id: id) }) else { return }
+        showToast("Удалено: \(removed.title)")
+    }
+
     func undo() {
         withAnimation(.snappy) {
             store.undo()
@@ -330,7 +336,10 @@ final class Assistant {
         withAnimation(.snappy) { toast = text }
         Task {
             try? await Task.sleep(for: .seconds(4))
-            if toastToken == token { withAnimation(.snappy) { toast = nil } }
+            if toastToken == token {
+                withAnimation(.snappy) { toast = nil }
+                store.forgetUndo()
+            }
         }
     }
 
