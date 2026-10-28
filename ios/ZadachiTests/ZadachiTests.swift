@@ -286,21 +286,32 @@ struct ReplyTests {
 
 @MainActor
 struct ModelTests {
-    @Test func liteFirstMaxFour() {
+    /// Две Lite, потом две обычные: если все Lite перегружены разом, выручают обычные.
+    @Test func twoLiteThenTwoFull() {
         let c = Gemini.candidates(last: "", discovered: ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-9-flash", "gemini-9-flash-lite"])
+        #expect(c == ["gemini-3.1-flash-lite", "gemini-9-flash-lite", "gemini-3.5-flash", "gemini-9-flash"])
+    }
+
+    /// Ровно случай со скриншота: в списке одни Lite — обычная flash всё равно попадает в попытки.
+    @Test func fullModelAlwaysTriedWhenOnlyLiteDiscovered() {
+        let c = Gemini.candidates(last: "", discovered: ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.1-flash-lite-preview", "gemini-2.5-flash-lite"])
         #expect(c.count == 4)
-        #expect(c.prefix(3).allSatisfy { $0.contains("lite") })
-        #expect(c.first == "gemini-3.1-flash-lite")
+        #expect(c.contains("gemini-3.5-flash"))
     }
 
     @Test func lastWorkingModelGoesFirstAmongItsKind() {
-        let c = Gemini.candidates(last: "gemini-2.5-flash-lite", discovered: [])
-        #expect(c == ["gemini-2.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-3-flash-preview"])
+        let c = Gemini.candidates(last: "gemini-3.1-flash-lite", discovered: [])
+        #expect(c == ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3-flash-preview"])
     }
 
     @Test func fallbackWhenNothingKnown() {
         #expect(Gemini.candidates(last: "", discovered: []) ==
-                ["gemini-3.1-flash-lite", "gemini-2.5-flash-lite", "gemini-3.5-flash", "gemini-3-flash-preview"])
+                ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-3-flash-preview"])
+    }
+
+    @Test func fillsFromOtherGroupWhenShort() {
+        let c = Gemini.candidates(last: "", discovered: ["gemini-1-lite", "gemini-2-lite", "gemini-3-lite"])
+        #expect(c.count == 4)
     }
 
     @Test func scoreOrder() {

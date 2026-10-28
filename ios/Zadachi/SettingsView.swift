@@ -55,6 +55,15 @@ struct SettingsView: View {
                         LabeledContent("Ответ Gemini", value: seconds(t.ai))
                     }
                 }
+
+                if let error = assistant.lastError {
+                    Section("Последняя ошибка") {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+                }
             }
             .navigationTitle("Настройки")
             .navigationBarTitleDisplayMode(.inline)

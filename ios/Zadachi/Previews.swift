@@ -62,6 +62,9 @@ struct Screens_Previews: PreviewProvider {
             screen(bubble: .init(heard: "Срочно оплатить интернет завтра",
                                  text: "Нет интернета.\nФраза сохранена — добавлю задачу, когда появится связь."))
                 .previewDisplayName("Нет связи")
+            screen(bubble: .init(heard: "Завязать шнурки завтра",
+                                 text: "Gemini сейчас перегружен.\nФраза сохранена — попробую ещё раз сам."))
+                .previewDisplayName("Перегружен")
             screen(bubble: .init(heard: "Позвонить маме", text: "Когда нужно позвонить маме?"))
                 .preferredColorScheme(.dark)
                 .previewDisplayName("Вопрос — тёмная")
@@ -71,6 +74,7 @@ struct Screens_Previews: PreviewProvider {
                 MicButton(phase: .idle, level: 0) {}
                 MicButton(phase: .listening, level: 0.6) {}
                 MicButton(phase: .thinking, level: 0) {}
+                MicButton(phase: .thinking, level: 0, stoppable: true) {}
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemGroupedBackground))

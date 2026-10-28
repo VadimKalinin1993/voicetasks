@@ -6,7 +6,13 @@ import UIKit
 struct MicButton: View {
     let phase: Phase
     let level: Float
+    /// Запрос к Gemini затянулся — вместо микрофона значок «стоп», нажатие обрывает запрос.
+    var stoppable = false
     let action: () -> Void
+
+    private var showsStop: Bool {
+        phase == .listening || phase == .speaking || (phase == .thinking && stoppable)
+    }
 
     private let size: CGFloat = 76
 
@@ -24,7 +30,7 @@ struct MicButton: View {
 
                 GlassDisc(size: size)
 
-                Image(systemName: phase == .listening || phase == .speaking ? "stop.fill" : "mic.fill")
+                Image(systemName: showsStop ? "stop.fill" : "mic.fill")
                     .font(.system(size: 28, weight: .semibold))
                     .foregroundStyle(active ? Self.blue : Color.primary)
                     .contentTransition(.symbolEffect(.replace))
@@ -34,7 +40,7 @@ struct MicButton: View {
             .animation(.snappy, value: phase)
         }
         .buttonStyle(PressScale())
-        .accessibilityLabel(phase == .listening ? "Закончить запись" : "Говорить")
+        .accessibilityLabel(phase == .listening ? "Закончить запись" : (phase == .thinking && stoppable ? "Остановить запрос" : "Говорить"))
     }
 }
 

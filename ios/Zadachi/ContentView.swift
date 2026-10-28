@@ -300,7 +300,7 @@ struct BottomBar: View {
     @Environment(Assistant.self) private var assistant
 
     var body: some View {
-        MicButton(phase: assistant.phase, level: assistant.speech.level) {
+        MicButton(phase: assistant.phase, level: assistant.speech.level, stoppable: assistant.stoppable) {
             assistant.micTapped()
         }
         .frame(maxWidth: .infinity)

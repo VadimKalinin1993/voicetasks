@@ -20,6 +20,8 @@ struct OpenQuestion: Codable, Equatable {
     var heard: String?
 }
 
+typealias AskResult = (reply: AssistantReply, model: String, ms: Int)
+
 /// Связывает микрофон, Gemini и список задач.
 @MainActor
 @Observable
@@ -34,9 +36,13 @@ final class Assistant {
     var toast: String?
     var settingsOpen = false {
         // Закрыли настройки (например, вставили ключ) — пробуем отправить то, что ждёт в очереди.
-        didSet { if oldValue && !settingsOpen { Task { await flushQueue() } } }
+        didSet { if oldValue && !settingsOpen { Task { await flushQueue(force: true) } } }
     }
     var timing: Timing?
+    /// Запрос идёт дольше 3 секунд — на кнопке микрофона появляется «стоп».
+    private(set) var stoppable = false
+    /// Подробности последней ошибки Gemini (по моделям) — показываются в настройках.
+    private(set) var lastError: String? = UserDefaults.standard.string(forKey: "lastError")
 
     let speech = SpeechInput()
     let gemini = Gemini()
@@ -46,6 +52,9 @@ final class Assistant {
     @ObservationIgnored private let queue: PhraseQueue
     @ObservationIgnored private var network: NetworkWatcher?
     @ObservationIgnored private var flushing = false
+    @ObservationIgnored private var lastFlush = Date.distantPast
+    /// Текущий запрос к Gemini — его можно отменить (кнопка «стоп» или новая запись).
+    @ObservationIgnored private var request: Task<AskResult, Error>?
 
     /// Открытый вопрос о сроке (задачи без срока и сам вопрос).
     @ObservationIgnored private var question: OpenQuestion? {
@@ -72,7 +81,7 @@ final class Assistant {
                 bubble = Bubble(heard: q.heard, text: q.question)
             }
             let me = WeakRef(self)
-            network = NetworkWatcher { Task { await me.value?.flushQueue() } }
+            network = NetworkWatcher { Task { await me.value?.flushQueue(force: false) } }
         }
     }
 
@@ -90,10 +99,13 @@ final class Assistant {
             phase = .idle
             speaker.stop()
         case .thinking:
-            break
+            // Запрос завис — «стоп» обрывает его, и можно диктовать заново.
+            if stoppable { request?.cancel() }
         case .idle:
             guard !starting else { return }
             starting = true
+            // Фоновый повтор фразы из очереди уступает новой записи: фраза подождёт следующего раза.
+            request?.cancel()
             Task { await run(auto: false) }
         }
     }
@@ -158,50 +170,97 @@ final class Assistant {
     // MARK: Отправка и очередь
 
     /// Отправляет фразу в Gemini. Возвращает false, если ответа нет и фраза осталась в очереди.
+    /// retry = фоновый повтор из очереди: он идёт незаметно и не занимает кнопку микрофона.
     @discardableResult
     private func send(_ item: QueuedPhrase, speechTime: Double?, retry: Bool) async -> Bool {
-        phase = .thinking
+        if !retry { phase = .thinking }
         // Пока идёт запрос, просим у iOS время доработать, даже если приложение свернули.
         let background = BackgroundTime.begin("gemini")
-        defer { background.end() }
 
         // Задачи, про срок которых спрашивали: из памяти или из сохранённой фразы.
         let asked = pending ?? queue.pendingTasks(of: item)
+        let ctx = queue.context(for: item, currentTasks: currentTasks())
+        let gemini = self.gemini
+        let request = Task { try await gemini.ask(item.heard, context: ctx) }
+        self.request = request
+
+        // Если ответ не пришёл за 3 секунды — показываем «стоп» на кнопке микрофона.
+        let stopTimer: Task<Void, Never>? = retry ? nil : Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard let self, !Task.isCancelled, self.phase == .thinking else { return }
+            withAnimation(.snappy) { self.stoppable = true }
+        }
+        defer { background.end() }
+        /// Запрос закончился (ответом, ошибкой или «стопом») — убираем «стоп» с кнопки сразу,
+        /// ещё до обработки ответа.
+        func finish() {
+            stopTimer?.cancel()
+            if self.request == request { self.request = nil }
+            if stoppable { withAnimation(.snappy) { stoppable = false } }
+        }
+
         do {
-            let ctx = queue.context(for: item, currentTasks: currentTasks())
-            let result = try await gemini.ask(item.heard, context: ctx)
+            let result: AskResult
+            do {
+                result = try await request.value
+            } catch {
+                finish()
+                throw error
+            }
+            finish()
+            // «Стоп» нажали в тот же миг, когда пришёл ответ, — считаем остановленным.
+            if request.isCancelled { throw CancellationError() }
             queue.remove(item.id)
+            setLastError(nil)
             if let speechTime {
                 saveTiming(Timing(model: result.model, speech: speechTime, ai: Double(result.ms) / 1000))
             }
             await handle(result.reply, heard: item.heard, asked: asked, mayListen: !retry)
             return true
-        } catch let e as GeminiError where e.canRetry {
-            // Ответа нет (сеть, лимит, ключ) — фраза остаётся в очереди.
+        } catch is CancellationError {
+            // Фоновый повтор перебили новой записью — фраза ждёт в очереди.
+            guard !retry else { return false }
+            // Нажали «стоп»: запрос и фразу сбрасываем, можно диктовать заново.
+            queue.remove(item.id)
             phase = .idle
+            withAnimation { bubble = Bubble(heard: item.heard, text: "Остановлено. Продиктуй ещё раз.") }
+            return false
+        } catch let e as GeminiError where e.canRetry {
+            // Ответа нет (сеть, перегрузка, лимит, ключ) — фраза остаётся в очереди.
+            setLastError(e.details)
             guard !retry else { return false }   // повтор в фоне — молча ждём следующего раза
+            phase = .idle
             // Вопрос о сроке теперь «живёт» в сохранённой фразе — снимаем его, чтобы не задать дважды.
             question = nil
-            let tail = e.isKey ? "Фраза сохранена — добавлю задачу, когда ключ заработает."
-                               : "Фраза сохранена — добавлю задачу, когда появится связь."
+            let tail: String
+            if e.isKey {
+                tail = "Фраза сохранена — добавлю задачу, когда ключ заработает."
+            } else if e.message.hasPrefix("Нет интернета") {
+                tail = "Фраза сохранена — добавлю задачу, когда появится связь."
+            } else {
+                tail = "Фраза сохранена — попробую ещё раз сам."
+            }
             withAnimation { bubble = Bubble(heard: item.heard, text: e.message + "\n" + tail) }
             if e.isKey { settingsOpen = true }
             return false
         } catch {
             // Ответ пришёл, но с ним что-то не так — повтор не поможет, убираем из очереди.
             queue.remove(item.id)
-            phase = .idle
+            setLastError((error as? GeminiError)?.details)
+            if !retry { phase = .idle }
             let text = (error as? GeminiError)?.message ?? error.localizedDescription
             withAnimation { bubble = Bubble(heard: item.heard, text: text) }
             return false
         }
     }
 
-    /// Отправляет фразы, которые ждут ответа. Вызывается при открытии приложения,
-    /// когда появляется сеть и после закрытия настроек.
-    func flushQueue() async {
+    /// Отправляет фразы, которые ждут ответа. Вызывается при открытии приложения (force),
+    /// после закрытия настроек (force) и когда появляется сеть — не чаще раза в 30 секунд.
+    func flushQueue(force: Bool = true) async {
         guard !flushing else { return }
+        guard force || Date().timeIntervalSince(lastFlush) > 30 else { return }
         flushing = true
+        lastFlush = Date()
         defer { flushing = false }
         while let item = queue.items.first,
               phase == .idle, !starting, pending == nil, !gemini.key.isEmpty,
@@ -371,6 +430,16 @@ final class Assistant {
         }
         ctx["last_question"] = value(question?.question)
         return ctx
+    }
+
+    private func setLastError(_ details: String?) {
+        guard details != lastError else { return }
+        lastError = details
+        if let details {
+            UserDefaults.standard.set(details, forKey: "lastError")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "lastError")
+        }
     }
 
     private func saveTiming(_ t: Timing) {

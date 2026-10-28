@@ -82,10 +82,13 @@ extension KeyedDecodingContainer where K == AssistantReply.Key {
 }
 
 struct GeminiError: Error {
+    /// Короткий текст для пузыря.
     var message: String
     var isKey = false
-    /// Ответа нет (сеть, таймаут, лимит, ключ) — фразу стоит отправить ещё раз позже.
+    /// Ответа нет (сеть, таймаут, лимит, перегрузка, ключ) — фразу стоит отправить ещё раз позже.
     var retry = false
+    /// Подробности по каждой модели — для настроек, не для пузыря.
+    var details: String? = nil
 
     var canRetry: Bool { retry || isKey }
 }
@@ -96,12 +99,19 @@ struct GeminiError: Error {
 final class Gemini {
     static let api = "https://generativelanguage.googleapis.com/v1beta"
     /// Если список моделей получить не удалось, пробуем эти. Lite — самые быстрые.
-    static let fallbackModels = ["gemini-3.1-flash-lite", "gemini-2.5-flash-lite", "gemini-3.5-flash", "gemini-3-flash-preview"]
+    static let fallbackModels = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-3-flash-preview"]
+
+    /// Сколько ждём одну модель, с. Дольше обычно значит, что модель перегружена — пробуем следующую.
+    static let attemptTimeout: TimeInterval = 8
+    /// Сколько всего может длиться один запрос со всеми моделями, с. Потом сдаёмся, фраза ждёт в очереди.
+    static let totalTimeout: TimeInterval = 20
 
     private let defaults = UserDefaults.standard
     private let session: URLSession = {
         let c = URLSessionConfiguration.default
-        c.timeoutIntervalForRequest = 12
+        c.timeoutIntervalForRequest = Gemini.attemptTimeout
+        // Жёсткий предел на всю загрузку ответа: медленный «капающий» ответ тоже обрывается.
+        c.timeoutIntervalForResource = Gemini.attemptTimeout + 2
         return URLSession(configuration: c)
     }()
 
@@ -194,11 +204,17 @@ final class Gemini {
         var thinkCache = defaults.dictionary(forKey: "think") as? [String: Int] ?? [:]
         var log: [String] = []
         var rateLimited = false
+        var overloaded = false
+        var timedOut = false
+        let deadline = Date().addingTimeInterval(Self.totalTimeout)
 
         for model in candidates {
             let steps = Self.thinkingSteps(model)
             var si = min(thinkCache[model] ?? 0, steps.count - 1)
             while si < steps.count {
+                // Нажали «стоп» или время на весь запрос вышло — следующие модели не пробуем.
+                try Task.checkCancellation()
+                guard Date() < deadline else { break }
                 var b = body
                 if let think = steps[si] {
                     var gc = b["generationConfig"] as? [String: Any] ?? [:]
@@ -208,7 +224,7 @@ final class Gemini {
                 guard let url = URL(string: "\(Self.api)/models/\(model):generateContent") else { break }
                 var req = URLRequest(url: url)
                 req.httpMethod = "POST"
-                req.timeoutInterval = 12
+                req.timeoutInterval = Self.attemptTimeout
                 req.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 req.setValue(key, forHTTPHeaderField: "x-goog-api-key")
                 req.httpBody = try JSONSerialization.data(withJSONObject: b)
@@ -222,10 +238,12 @@ final class Gemini {
                     code = (r as? HTTPURLResponse)?.statusCode ?? 0
                 } catch {
                     let ns = error as NSError
+                    if Task.isCancelled || ns.code == NSURLErrorCancelled { throw CancellationError() }
                     if ns.code == NSURLErrorNotConnectedToInternet {
                         throw GeminiError(message: "Нет интернета.", retry: true)
                     }
-                    log.append("\(model): " + (ns.code == NSURLErrorTimedOut ? "нет ответа за 12 с" : "сеть: \(ns.localizedDescription)"))
+                    if ns.code == NSURLErrorTimedOut { timedOut = true }
+                    log.append("\(model): " + (ns.code == NSURLErrorTimedOut ? "нет ответа за \(Int(Self.attemptTimeout)) с" : "сеть: \(ns.localizedDescription)"))
                     break
                 }
 
@@ -246,18 +264,38 @@ final class Gemini {
                     continue
                 }
                 log.append("\(model): \(code) \(err.message.prefix(90))")
-                if code == 404 || err.message.range(of: "not found|not supported|deprecat", options: [.regularExpression, .caseInsensitive]) != nil {
-                    if lastModel == model { defaults.removeObject(forKey: "model") }
+                if code == 404 || err.message.range(of: "not found|not supported|deprecat|no longer available", options: [.regularExpression, .caseInsensitive]) != nil {
+                    // Модель убрали — вычёркиваем её из списка, чтобы не тратить на неё время в следующий раз.
+                    forget(model)
                 } else if code == 429 {
                     rateLimited = true
+                } else if code == 503 {
+                    overloaded = true
                 } else if code < 500 {
-                    throw GeminiError(message: "Gemini вернул ошибку:\n" + log.joined(separator: "\n"))
+                    throw GeminiError(message: "Gemini вернул ошибку.", details: log.joined(separator: "\n"))
                 }
                 break
             }
         }
-        let head = rateLimited ? "Лимит бесплатных запросов исчерпан. Попробуй чуть позже." : "Не получилось достучаться до Gemini."
-        throw GeminiError(message: head + "\n" + log.joined(separator: "\n"), retry: true)
+        let head: String
+        if rateLimited {
+            head = "Лимит бесплатных запросов исчерпан."
+        } else if overloaded {
+            head = "Gemini сейчас перегружен."
+        } else if timedOut {
+            head = "Gemini не ответил вовремя."
+        } else {
+            head = "Не получилось достучаться до Gemini."
+        }
+        throw GeminiError(message: head, retry: true, details: log.joined(separator: "\n"))
+    }
+
+    private func forget(_ model: String) {
+        if lastModel == model { defaults.removeObject(forKey: "model") }
+        if var models = defaults.stringArray(forKey: "models"), models.contains(model) {
+            models.removeAll { $0 == model }
+            defaults.set(models, forKey: "models")
+        }
     }
 
     func discoverModels(key: String) async throws -> [String] {
@@ -285,11 +323,17 @@ final class Gemini {
 
     // MARK: Помощники
 
-    /// Порядок попыток: сначала Flash-Lite (последняя удачная — первой среди своих), потом остальные flash. Не больше 4.
+    /// Порядок попыток: две Flash-Lite (последняя удачная — первой среди своих), потом две обычные flash.
+    /// Обычные обязательно в списке: когда все Lite перегружены сразу, выручают они. Не больше 4.
     static func candidates(last: String, discovered: [String]) -> [String] {
         var all: [String] = []
         for m in [last] + discovered + fallbackModels where !m.isEmpty && !all.contains(m) { all.append(m) }
-        return Array((all.filter { $0.contains("lite") } + all.filter { !$0.contains("lite") }).prefix(4))
+        let lite = all.filter { $0.contains("lite") }
+        let full = all.filter { !$0.contains("lite") }
+        var picked = Array(lite.prefix(2)) + Array(full.prefix(2))
+        // Если какой-то группы не хватило — добираем из другой.
+        for m in lite.dropFirst(2) + full.dropFirst(2) where picked.count < 4 { picked.append(m) }
+        return picked
     }
 
     static func score(_ name: String) -> Double {
