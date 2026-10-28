@@ -173,6 +173,11 @@ enum Dates {
     }
 
     static func today() -> String { iso.string(from: Date()) }
+
+    /// «28 октября» — для заголовка главного экрана.
+    static func headerTitle(_ day: String) -> String {
+        dayMonth.string(from: date(day) ?? Date())
+    }
     static func todayWeekday() -> String { weekday.string(from: Date()) }
     static func nowTime() -> String {
         let c = Calendar.current.dateComponents([.hour, .minute], from: Date())
@@ -257,7 +262,8 @@ final class TaskStore {
     }
     @ObservationIgnored private(set) var isPreview = false
 
-    var title: String { tasks.isEmpty ? "Задач нет" : tasksCount(tasks.count) }
+    /// Заголовок главного экрана — сегодняшняя дата: «28 октября». Сам меняется после полуночи.
+    var title: String { Dates.headerTitle(today) }
 
     /// Вызывается при открытии приложения и в полночь.
     func refreshDay() {

@@ -72,6 +72,12 @@ struct DatesTests {
         #expect(head("2026-10-28", afterMidnight) == "Сегодня")
     }
 
+    @Test func headerIsTodayDate() {
+        #expect(Dates.headerTitle("2026-10-28") == "28 октября")
+        #expect(Dates.headerTitle("2027-02-27") == "27 февраля")
+        #expect(Dates.headerTitle("2026-03-15") == "15 марта")
+    }
+
     @Test func doneTitles() {
         #expect(Dates.doneSectionTitle(day("2026-10-27", hour: 9), now: now) == "Сегодня")
         #expect(Dates.doneSectionTitle(day("2026-10-26", hour: 23), now: now) == "Вчера")
@@ -174,7 +180,7 @@ struct StoreTests {
         let store = TaskStore(preview: [], done: [])
         store.add((0..<50).map { NewTask(title: "t\($0)", due: nil, priority: .normal) })
         #expect(Set(store.tasks.map(\.id)).count == 50)
-        #expect(store.title == "50 задач")
+        #expect(store.tasks.count == 50)
     }
 }
 
